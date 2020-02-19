@@ -4,13 +4,17 @@ import matplotlib.pyplot as plt
 import argparse
 
 from env.env import Env
-from networks.actor_critic import A2CNet
+from agents.agent import Agent
 
-parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
+parser = argparse.ArgumentParser(description='Adversarial attacks on the CarRacing-v0 environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
+parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+# only use if attack_type is not general
+parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
+parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
 args = parser.parse_args()
 
 use_cuda = torch.cuda.is_available()
@@ -20,38 +24,19 @@ if use_cuda:
     torch.cuda.manual_seed(args.seed)
 
 
-class Agent():
-    """
-    Agent for testing
-    """
-
-    def __init__(self):
-        self.net = A2CNet(args.img_stack).float().to(device)
-
-    def select_action(self, state):
-        state = torch.from_numpy(state).float().to(device).unsqueeze(0)
-        with torch.no_grad():
-            alpha, beta = self.net(state)[0]
-        action = alpha / (alpha + beta)
-
-        action = action.squeeze().cpu().numpy()
-        return action
-
-    def load_param(self):
-        self.net.load_state_dict(torch.load('param/ppo_net_params.pkl', map_location='cpu'))
-
-
-if __name__ == "__main__":
-    agent = Agent()
-    agent.load_param()
+def test_attack():
+    agent = Agent(args.img_stack, device)
+    agent.load_param(device)
     env = Env(args.seed, args.img_stack, args.action_repeat)
 
-    training_records = []
-    running_score = 0
-    state = env.reset()
-
-    # load adv input
-    delta_s = np.load('param/adv.npy')
+    # load adv input, by default general attack perturbation
+    delta_s = np.load('param/adv_general.npy')
+    if args.attack_type != 'general':
+        file_path = 'param/adv_' + args.attack_type
+        if args.attack_type == 'patch':
+            file_path += '_' + args.patch_type
+        file_path += '.npy'
+        delta_s = np.load(file_path)
     # show adv
     fig = plt.figure(figsize=(8, 8))
     plt.title('Stack of ' + str(args.img_stack) + ' adversarial signals seen by Agent')
@@ -80,7 +65,7 @@ if __name__ == "__main__":
                     plt.show()
                 state += delta_s
 
-            action = agent.select_action(state)
+            action = agent.select_action(state, device)
             state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
             if args.render:
                 env.render()
@@ -90,3 +75,7 @@ if __name__ == "__main__":
                 break
 
         print('Ep {}\tScore: {:.2f}\t'.format(i_ep, score))
+
+
+if __name__ == "__main__":
+    test_attack()

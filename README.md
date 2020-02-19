@@ -21,7 +21,10 @@ Here are some of the dependencies that are required. For complete dependencies c
 Note: If you are facing errors related to Box2D while running, try installing ```Box2D-kengz  v2.3.3```
 
 ### Running
-To train the attack, run ```python adv_attack_train.py```. To test the attack and render the environment, run ```python adv_attack_test.py --render```
+#### General attack (Level 0)
+To train the attack, run ```python adv_attack_train.py --attack_type=general```. To test the attack and render the environment, run ```python adv_attack_test.py --render --attack_type=general```
+#### Patch attack (Level 1)
+To train the attack, run ```python adv_attack_train.py --attack_type=patch --patch_type=circle```. To test the attack and render the environment, run ```python adv_attack_test.py --render --attack_type=patch --patch_type=circle```. Currently supports only two types of patches **box** and **circle**.
 
 ### Disclaimer
 This work is highly based on the following repo:
