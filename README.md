@@ -6,7 +6,7 @@ Attacking car racing in OpenAI Gym using adversarial attacks on environment. The
 ### Installation
 Clone the repo and cd into directory.
 
-```$ git clone https://github.com/Khrylx/PyTorch-RL.git```
+```$ git clone https://github.com/DesignInformaticsLab/adversarial-environment.git```
 
 ```$ cd adversarial-environment```
 ### Requirements

@@ -1,0 +1,11 @@
+Patch attack
+Observations
+- Loss is increasing whenever a new episode is run. sometimes even within same episode
+- sum(delta_s) is either increasing or decreasing. Should we clamp the values?
+To do
+- develop patch type circle
+
+
+Tuning
+- change patch size
+- initialization of perturbation
