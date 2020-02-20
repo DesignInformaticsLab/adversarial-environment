@@ -31,7 +31,7 @@ if use_cuda:
 # variables for patch attack, Need to move somewhere else later
 box_dim = (48, 48)
 box_position = (10, 10)
-circle_centre = (72, 24)
+circle_centre = (24, 72)
 circle_radius = 20
 
 # tensorboard variables
@@ -52,6 +52,8 @@ class AdvAttack:
         self.buffer_counter, self.is_buffer_full = 0, False
         # take a left turn as target action [0.25, 0.5, 0.25]. This can be changed
         self.target_action = torch.from_numpy(np.array([0.25, 0.5, 0.25], dtype=np.double))
+        # counter to track loss in tensorboard
+        self.tensorboard_counter = 0
 
     def initialize_perturbation(self, shape, ):
         self.delta_s = np.random.random(shape) * 0.1
@@ -126,6 +128,11 @@ class AdvAttack:
                 # update buffer with new delta_s
                 for i in range(self.buffer_capacity):
                     self.buffer[i]['d_s'] = self.delta_s
+
+                self.tensorboard_counter += 1
+            if self.tensorboard_counter % 10 == 0:
+                writer.add_scalar('mse loss', mse_loss_scalar, self.tensorboard_counter)
+                print('Loss added to tensorboard')
 
     def optimize_perturbation(self, adv_action, perturb):
         # mean square loss
