@@ -1,13 +1,16 @@
 import torch
 import torch.optim as optim
+from torchvision.utils import make_grid
 import numpy as np
 import argparse
+import warnings
 
 from env.env import Env
 from networks.actor_critic import A2CNet
 from agents.agent import Agent
-import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
+warnings.filterwarnings("ignore", category=FutureWarning)
 parser = argparse.ArgumentParser(description='Adversarial attacks on the CarRacing-v0 environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
@@ -28,8 +31,14 @@ if use_cuda:
 # variables for patch attack, Need to move somewhere else later
 box_dim = (48, 48)
 box_position = (10, 10)
-circle_centre = (24, 24)
-circle_radius = 24
+circle_centre = (72, 24)
+circle_radius = 20
+
+# tensorboard variables
+writer_name = 'runs/adv_' + args.attack_type
+if args.attack_type == 'patch':
+    writer_name += '_' + args.patch_type
+writer = SummaryWriter(writer_name)
 
 
 class AdvAttack:
@@ -166,6 +175,14 @@ def run_agent():
             action = agent.select_action(state, device)
             # update buffer for training the attack
             attack.update_buffer(state)
+
+            # write to tensorboard
+            input_imgs_to_net = torch.tensor((attack.buffer['s'] + attack.buffer['d_s']))
+            input_imgs_grid = make_grid(input_imgs_to_net[0].reshape(4, 1, 96, 96))
+            writer.add_image('Four stack of input state with adversarial', input_imgs_grid)
+            writer.add_graph(attack.net, input_imgs_to_net)
+            writer.close()
+
             # train attack
             attack.train()
 
