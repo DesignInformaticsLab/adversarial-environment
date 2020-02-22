@@ -11,6 +11,7 @@ class Agent():
         self.net = A2CNet(img_stack).float().to(device)
 
     def select_action(self, state, device):
+        # state array contains values with in the range [-1, 0.9921875]
         state = torch.from_numpy(state).float().to(device).unsqueeze(0)
         with torch.no_grad():
             alpha, beta = self.net(state)[0]

@@ -1,19 +1,23 @@
 import torch
 import torch.optim as optim
+from torchvision.utils import make_grid
 import numpy as np
 import argparse
+import warnings
 
 from env.env import Env
 from networks.actor_critic import A2CNet
 from agents.agent import Agent
-import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
+warnings.filterwarnings("ignore", category=FutureWarning)
 parser = argparse.ArgumentParser(description='Adversarial attacks on the CarRacing-v0 environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+parser.add_argument('--adv_bound', type=float, default=0.1, metavar='N', help='epsilon value for perturbation limits')
 # only use if attack_type is not general
 parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
 parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
@@ -28,8 +32,14 @@ if use_cuda:
 # variables for patch attack, Need to move somewhere else later
 box_dim = (48, 48)
 box_position = (10, 10)
-circle_centre = (24, 24)
-circle_radius = 24
+circle_centre = (24, 72)
+circle_radius = 20
+
+# tensorboard variables
+writer_name = 'runs/adv_' + args.attack_type
+if args.attack_type == 'patch':
+    writer_name += '_' + args.patch_type
+writer = SummaryWriter(writer_name)
 
 
 class AdvAttack:
@@ -43,8 +53,10 @@ class AdvAttack:
         self.buffer_counter, self.is_buffer_full = 0, False
         # take a left turn as target action [0.25, 0.5, 0.25]. This can be changed
         self.target_action = torch.from_numpy(np.array([0.25, 0.5, 0.25], dtype=np.double))
+        # counter to track loss in tensorboard
+        self.tensorboard_counter = 0
 
-    def initialize_perturbation(self, shape, ):
+    def initialize_perturbation(self, shape):
         self.delta_s = np.random.random(shape) * 0.1
         # will deal later for multiple attacks
         if self.attack_type == 'patch':
@@ -93,13 +105,18 @@ class AdvAttack:
                 d_s.requires_grad = True
 
                 # get actions and value functions from NN based  on s + d_s.
-                (alpha, beta), v_adv = self.net(s + d_s)
+                s_with_d_s = s + d_s
+                # observation limits
+                s_with_d_s = torch.clamp(s_with_d_s, -1, 0.9921875)
+                (alpha, beta), v_adv = self.net(s_with_d_s)
                 a_adv = alpha / (alpha + beta)
 
                 d_s, mse_loss = self.optimize_perturbation(a_adv, d_s)
 
                 # save delta_s as average of d_s in the entire batch
                 self.delta_s = np.average(d_s.detach().numpy(), axis=0)
+                # bound on perturbation
+                self.delta_s = np.clip(self.delta_s, -args.adv_bound, args.adv_bound)
 
                 # print delta_s and mse loss
                 mse_loss_scalar = mse_loss.detach().numpy().item() / self.buffer_capacity
@@ -117,6 +134,11 @@ class AdvAttack:
                 # update buffer with new delta_s
                 for i in range(self.buffer_capacity):
                     self.buffer[i]['d_s'] = self.delta_s
+
+                self.tensorboard_counter += 1
+            if self.tensorboard_counter % 10 == 0:
+                writer.add_scalar('mse loss', mse_loss_scalar, self.tensorboard_counter)
+                print('Loss added to tensorboard')
 
     def optimize_perturbation(self, adv_action, perturb):
         # mean square loss
@@ -166,6 +188,14 @@ def run_agent():
             action = agent.select_action(state, device)
             # update buffer for training the attack
             attack.update_buffer(state)
+
+            # write to tensorboard
+            input_imgs_to_net = torch.tensor((attack.buffer['s'] + attack.buffer['d_s']))
+            input_imgs_grid = make_grid(input_imgs_to_net[0].reshape(4, 1, 96, 96))
+            writer.add_image('Four stack of input state with adversarial', input_imgs_grid)
+            writer.add_graph(attack.net, input_imgs_to_net)
+            writer.close()
+
             # train attack
             attack.train()
 
