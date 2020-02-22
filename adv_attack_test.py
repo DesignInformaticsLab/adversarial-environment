@@ -12,6 +12,7 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+parser.add_argument('--adversarial_bound', type=float, default=0.1, metavar='N', help='epsilon value for perturbation')
 # only use if attack_type is not general
 parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
 parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
@@ -43,7 +44,8 @@ def test_attack():
     plt.axis('off')
     columns, rows = args.img_stack // 2, args.img_stack // 2
     for i in range(1, columns * rows + 1):
-        img = delta_s[i - 1]
+        # denormalize while showing the image
+        img = (delta_s[i - 1] + 1) * 128
         fig.add_subplot(rows, columns, i)
         plt.imshow(img, cmap='gray')
     plt.show()
@@ -57,9 +59,13 @@ def test_attack():
             attack_render = [30, 40]
             if t in np.arange(attack_render[0], attack_render[1] + 1):
                 if t in attack_render:
+                    s_with_ds = (state + delta_s)
+                    # clip the image limits and denormalize for displaying
+                    s_with_ds = np.clip(s_with_ds, -1, 0.9921875)
+                    s_with_ds = (s_with_ds + 1) * 128
                     title = 'Attack Started' if t == attack_render[0] else 'Attack ended'
                     title += ' (showing first frame of 4 frames visible to policy)'
-                    plt.imshow((state + delta_s)[0], cmap='gray')
+                    plt.imshow(s_with_ds[0], cmap='gray')
                     plt.axis('off')
                     plt.title(title)
                     plt.show()

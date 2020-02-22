@@ -17,6 +17,7 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+parser.add_argument('--adv_bound', type=float, default=0.1, metavar='N', help='epsilon value for perturbation limits')
 # only use if attack_type is not general
 parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
 parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
@@ -55,7 +56,7 @@ class AdvAttack:
         # counter to track loss in tensorboard
         self.tensorboard_counter = 0
 
-    def initialize_perturbation(self, shape, ):
+    def initialize_perturbation(self, shape):
         self.delta_s = np.random.random(shape) * 0.1
         # will deal later for multiple attacks
         if self.attack_type == 'patch':
@@ -104,13 +105,18 @@ class AdvAttack:
                 d_s.requires_grad = True
 
                 # get actions and value functions from NN based  on s + d_s.
-                (alpha, beta), v_adv = self.net(s + d_s)
+                s_with_d_s = s + d_s
+                # observation limits
+                s_with_d_s = torch.clamp(s_with_d_s, -1, 0.9921875)
+                (alpha, beta), v_adv = self.net(s_with_d_s)
                 a_adv = alpha / (alpha + beta)
 
                 d_s, mse_loss = self.optimize_perturbation(a_adv, d_s)
 
                 # save delta_s as average of d_s in the entire batch
                 self.delta_s = np.average(d_s.detach().numpy(), axis=0)
+                # bound on perturbation
+                self.delta_s = np.clip(self.delta_s, -args.adv_bound, args.adv_bound)
 
                 # print delta_s and mse loss
                 mse_loss_scalar = mse_loss.detach().numpy().item() / self.buffer_capacity
