@@ -12,6 +12,8 @@ from gym.utils import colorize, seeding, EzPickle
 import pyglet
 from pyglet import gl
 
+import matplotlib.pyplot as plt
+
 # Easiest continuous control task to learn from pixels, a top-down racing environment.
 # Discrete control is reasonable in this environment as well, on/off discretization is
 # fine.
@@ -51,7 +53,7 @@ TRACK_RAD   = 900/SCALE  # Track is heavily morphed circle with this radius
 PLAYFIELD   = 2000/SCALE # Game over boundary
 FPS         = 50         # Frames per second
 ZOOM        = 2.7        # Camera zoom
-ZOOM_FOLLOW = True       # Set to False for fixed view (don't use zoom)
+ZOOM_FOLLOW = False       # Set to False for fixed view (don't use zoom)
 
 
 TRACK_DETAIL_STEP = 21/SCALE
@@ -355,7 +357,10 @@ class CarRacingAdv(gym.Env, EzPickle):
 
         if "t" not in self.__dict__: return  # reset() not called yet
 
-        zoom = 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
+        if ZOOM_FOLLOW:
+            zoom = 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
+        else:
+            zoom = 16.200000000000003
         zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
         zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
         scroll_x = self.car.hull.position[0]
@@ -507,9 +512,9 @@ if __name__=="__main__":
             if steps % 200 == 0 or done:
                 print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                #import matplotlib.pyplot as plt
-                #plt.imshow(s)
-                #plt.savefig("test.jpeg")
+                # import matplotlib.pyplot as plt
+                # plt.imshow(s)
+                # plt.savefig("test.jpeg")
             steps += 1
             isopen = env.render()
             if done or restart or isopen == False:
