@@ -41,7 +41,7 @@ class Random_Agent():
             alpha, beta = self.net(state)[0]
         alpha, beta = torch.randn(alpha.size()), torch.randn(beta.size())
         action = alpha / (alpha + beta)
-	action = torch.clamp(action, min=-1, max=1)
+        action = torch.clamp(action, min=-1, max=1)
 
         action = action.squeeze().cpu().numpy()
         return action
