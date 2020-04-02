@@ -22,12 +22,13 @@ class Env():
         img_rgb = self.env.reset()
         img_gray = self.rgb2gray(img_rgb)
         self.stack = [img_gray] * self.img_stack
+        self.adv_stack = [np.zeros_like(img_gray)] * self.img_stack
         return np.array(self.stack)
 
     def step(self, action):
         total_reward = 0
         for i in range(self.action_repeat):
-            img_rgb, reward, die, _ = self.env.step(action)
+            img_rgb, reward, die, _, adv = self.env.step(action)
             # don't penalize "die state"
             if die:
                 reward += 100
@@ -42,8 +43,10 @@ class Env():
         img_gray = self.rgb2gray(img_rgb)
         self.stack.pop(0)
         self.stack.append(img_gray)
+        self.adv_stack.pop(0)
+        self.adv_stack.append(self.rgb2gray(adv))
         assert len(self.stack) == self.img_stack
-        return np.array(self.stack), total_reward, done, die
+        return np.array(self.stack), total_reward, done, die, np.array(self.adv_stack)
 
     def render(self, *arg):
         self.env.render(*arg)

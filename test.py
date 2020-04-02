@@ -4,6 +4,8 @@ import torch
 
 from env.env_adv import Env
 from agents.agent import Agent
+import time
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
@@ -31,8 +33,20 @@ if __name__ == "__main__":
         state = env.reset()
 
         for t in range(1000):
+            if t == 7:
+                print('Pause the game')
+                print(len(env.env.track))
+                # time.sleep(10)
             action = agent.select_action(state, device)
-            state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
+            state_, reward, done, die, adv = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
+            if t == 17:
+                plt.imshow(128 * state_[0] + 1, cmap='gray')
+                plt.title('state (first frame of 4)')
+                plt.show()
+                plt.imshow(adv[0], cmap='gray')
+                plt.title('Physical perturbation that needs to be optimized (first frame of 4)')
+                plt.show()
+
             if args.render:
                 env.render()
             score += reward
