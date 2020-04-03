@@ -35,13 +35,6 @@ class Random_Agent():
         self.net = A2CNet(img_stack).float().to(device)
 
     def select_action(self, state, device):
-        # state array contains values with in the range [-1, 0.9921875]
-        state = torch.from_numpy(state).float().to(device).unsqueeze(0)
-        with torch.no_grad():
-            alpha, beta = self.net(state)[0]
-        alpha, beta = torch.randn(alpha.size()), torch.randn(beta.size())
-        action = alpha / (alpha + beta)
-        action = torch.clamp(action, min=-1, max=1)
-
+        action = torch.rand((1,3))
         action = action.squeeze().cpu().numpy()
         return action
