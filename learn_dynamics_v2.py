@@ -105,7 +105,7 @@ def train():
 
     s = torch.tensor(trajectory['s'], dtype=torch.float).to(device)
     a = torch.tensor(trajectory['a'], dtype=torch.float).to(device)
-    groundtruth_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
+    next_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
 
     dl.train()
     if os.path.isfile(weights_file_path):
@@ -119,9 +119,9 @@ def train():
             pred_s, dyn_pred = dl(s[index].cuda(), a[index].cuda())
 
             pred_s = torch.cat((s[index][:, :3, :, :], pred_s.unsqueeze(1)), dim=1)
-            pred_s_ = torch.cat((groundtruth_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
+            pred_s_ = torch.cat((next_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
 
-            loss = loss_func(pred_s, s[index], pred_s_, groundtruth_s[index])
+            loss = loss_func(pred_s, s[index], pred_s_, next_s[index])
 
             optimizer.zero_grad()
             loss.backward()
@@ -175,7 +175,7 @@ def eval():
 
     s = torch.tensor(trajectory['s'], dtype=torch.float).to(device)
     a = torch.tensor(trajectory['a'], dtype=torch.float).to(device)
-    groundtruth_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
+    next_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
 
     dl.eval()
     load_param(dl, device)
@@ -189,9 +189,9 @@ def eval():
             pred_s, dyn_pred = dl(s[index], a[index])
 
             pred_s = torch.cat((s[index][:, :3, :, :],pred_s.unsqueeze(1)), dim=1)
-            pred_s_ = torch.cat((groundtruth_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
+            pred_s_ = torch.cat((next_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
 
-            loss = loss_func(pred_s, s[index], pred_s_, groundtruth_s[index])
+            loss = loss_func(pred_s, s[index], pred_s_, next_s[index])
 
         total_loss += loss.item()/ns
 
