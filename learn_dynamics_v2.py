@@ -11,7 +11,7 @@ import tqdm
 import matplotlib.pyplot as plt
 import os
 
-from env.env import Env
+from env.env_adv import Env
 from agents.agent import Agent, Random_Agent
 
 warnings.filterwarnings("ignore", category=FutureWarning)
