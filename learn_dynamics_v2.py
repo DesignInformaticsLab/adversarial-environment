@@ -33,12 +33,13 @@ if use_cuda:
 traj = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)), ('s_', np.float64, (args.img_stack, 96, 96))])
 
 epochs = 500
-ns = 1e3
+ns = 1e4
 batch_size = 50
 lmd = args.lmd
 lr = 1e-2
 
-weights_file = 'param/autoencoder.pkl'
+weights_file_path = 'param/learn_dynamics_lmd_{}.pkl'.format(lmd)
+data_file_path = './data/{}-ns-trajectories-seed-{}-no-zoom.npy'.format(int(ns), args.seed)
 
 def collect_trajectories(agent, env, ns, device):
     counter = 0
@@ -46,29 +47,26 @@ def collect_trajectories(agent, env, ns, device):
     state = env.reset()
 
     while counter < ns/2:
-        if args.render:
-            env.render()
         action = agent.select_action(state, device)
         state_, _, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
         buffer[counter] = (state, action, state_)
         state = state_
         if done or die:
             state = env.reset()
-            #state, _, _, _ = env.step([0, 0, 0] * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
         counter += 1
 
     return buffer
 
 def save_param(dl):
-    file_path = weights_file
+    file_path = weights_file_path
     torch.save(dl.state_dict(), file_path)
     print('NN saved in ', file_path)
 
 def load_param(dl, device):
     if device == torch.device('cpu'):
-        dl.load_state_dict(torch.load(weights_file, map_location='cpu'))
+        dl.load_state_dict(torch.load(weights_file_path, map_location='cpu'))
     else:
-        dl.load_state_dict(torch.load(weights_file))
+        dl.load_state_dict(torch.load(weights_file_path))
 
 def loss_func(pred_state, gt_state, pred_state_, gt_state_):
     l2_loss = nn.MSELoss()
@@ -76,7 +74,7 @@ def loss_func(pred_state, gt_state, pred_state_, gt_state_):
     AE_loss = l2_loss(pred_state, gt_state)
     dynamics_loss = l2_loss(pred_state_, gt_state_)
 
-    return (AE_loss + lmd*dynamics_loss)
+    return AE_loss + lmd*dynamics_loss
 
 def train():
     agent = Agent(args.img_stack, device)
@@ -85,14 +83,13 @@ def train():
 
     env = Env(args.seed, args.img_stack, args.action_repeat)
 
-    dl = AutoEncoder(batch_size, device=device)
+    dl = ModelDynamics(4, batch_size, device)
 
     if use_cuda:
         dl.cuda()
 
     optimizer = optim.Adam(dl.parameters(), lr=lr)
 
-    data_file_path = './data/{}-ns-trajectories-seed-{}-no-zoom.npy'.format(int(ns), args.seed)
     if os.path.isfile(data_file_path):
         print('Trajectory found, Loading data...')
         trajectory = np.load(data_file_path)
@@ -111,7 +108,7 @@ def train():
     groundtruth_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
 
     dl.train()
-    if os.path.isfile(weights_file):
+    if os.path.isfile(weights_file_path):
         load_param(dl, device)
 
     min_loss = 10000
@@ -138,7 +135,7 @@ def train():
             min_loss = running_loss
             save_param(dl)
 
-        if i % 50 == 0:
+        if i % 100 == 0:
             num = np.random.randint(0, batch_size)
             bounds = np.random.randint(0, ns-batch_size)
             with torch.no_grad():
@@ -163,12 +160,18 @@ def eval():
     dl = ModelDynamics(4, batch_size)
     l2_loss = nn.MSELoss()
 
-    print('Collecting Trajectories')
-    buffer = collect_trajectories(agent, env, ns, device)
-    print('Collecting Random Trajectories')
-    rand_buffer = collect_trajectories(rand_agent, env, ns, device)
+    if os.path.isfile(data_file_path):
+        print('Trajectory found, Loading data...')
+        trajectory = np.load(data_file_path)
+    else:
+        print('Collecting Trajectories')
+        buffer = collect_trajectories(agent, env, ns, device)
+        print('Collecting Random Trajectories')
+        rand_buffer = collect_trajectories(rand_agent, env, ns, device)
 
-    trajectory = np.concatenate([buffer, rand_buffer])
+        trajectory = np.concatenate([buffer, rand_buffer])
+        np.save(data_file_path, trajectory)
+        print('Data saved in ', data_file_path)
 
     s = torch.tensor(trajectory['s'], dtype=torch.float).to(device)
     a = torch.tensor(trajectory['a'], dtype=torch.float).to(device)
@@ -185,9 +188,10 @@ def eval():
         with torch.no_grad():
             pred_s, dyn_pred = dl(s[index], a[index])
 
+            pred_s = torch.cat((s[index][:, :3, :, :],pred_s.unsqueeze(1)), dim=1)
             pred_s_ = torch.cat((groundtruth_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
 
-            loss = loss_func(pred_s, s[index][:, 3, :, :], pred_s_, groundtruth_s[index])
+            loss = loss_func(pred_s, s[index], pred_s_, groundtruth_s[index])
 
         total_loss += loss.item()/ns
 
