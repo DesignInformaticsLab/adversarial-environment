@@ -1,8 +1,7 @@
-import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from model_dynamics_v2 import *
+from dynamics.model_dynamics_v2 import *
 
 import numpy as np
 import argparse
@@ -30,7 +29,8 @@ torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
 
-traj = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)), ('s_', np.float64, (args.img_stack, 96, 96))])
+traj = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)),
+                 ('s_', np.float64, (args.img_stack, 96, 96))])
 
 epochs = 500
 ns = 1e4
@@ -41,12 +41,13 @@ lr = 1e-2
 weights_file_path = 'param/learn_dynamics_lmd_{}.pkl'.format(lmd)
 data_file_path = './data/{}-ns-trajectories-seed-{}.npy'.format(int(ns), args.seed)
 
+
 def collect_trajectories(agent, env, ns, device):
     counter = 0
-    buffer = np.empty(int(ns/2), dtype=traj)
+    buffer = np.empty(int(ns / 2), dtype=traj)
     state = env.reset()
 
-    while counter < ns/2:
+    while counter < ns / 2:
         action = agent.select_action(state, device)
         state_, _, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
         buffer[counter] = (state, action, state_)
@@ -57,10 +58,12 @@ def collect_trajectories(agent, env, ns, device):
 
     return buffer
 
+
 def save_param(dl):
     file_path = weights_file_path
     torch.save(dl.state_dict(), file_path)
     print('NN saved in ', file_path)
+
 
 def load_param(dl, device):
     if device == torch.device('cpu'):
@@ -68,13 +71,15 @@ def load_param(dl, device):
     else:
         dl.load_state_dict(torch.load(weights_file_path))
 
+
 def loss_func(pred_state, gt_state, pred_state_, gt_state_):
     l2_loss = nn.MSELoss()
 
     AE_loss = l2_loss(pred_state, gt_state)
     dynamics_loss = l2_loss(pred_state_, gt_state_)
 
-    return AE_loss + lmd*dynamics_loss
+    return AE_loss + lmd * dynamics_loss
+
 
 def train():
     agent = Agent(args.img_stack, device)
@@ -137,17 +142,18 @@ def train():
 
         if i % 100 == 0:
             num = np.random.randint(0, batch_size)
-            bounds = np.random.randint(0, ns-batch_size)
+            bounds = np.random.randint(0, ns - batch_size)
             with torch.no_grad():
                 plt.title('Predicted')
                 _, pred = dl(torch.from_numpy(trajectory[bounds:bounds + batch_size]['s']).float().cuda(),
-                              torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float().cuda())
+                             torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float().cuda())
                 plt.imshow(pred.cpu()[num])
                 plt.show()
             plt.title('Groundtruth')
             plt.imshow(trajectory[bounds:bounds + batch_size]['s_'][num, 3, :, :])
             plt.show()
     print('done')
+
 
 def eval():
     device = torch.device('cpu')
@@ -188,22 +194,22 @@ def eval():
         with torch.no_grad():
             pred_s, dyn_pred = dl(s[index], a[index])
 
-            pred_s = torch.cat((s[index][:, :3, :, :],pred_s.unsqueeze(1)), dim=1)
+            pred_s = torch.cat((s[index][:, :3, :, :], pred_s.unsqueeze(1)), dim=1)
             pred_s_ = torch.cat((next_s[index][:, :3, :, :], dyn_pred.unsqueeze(1)), dim=1)
 
             loss = loss_func(pred_s, s[index], pred_s_, next_s[index])
 
-        total_loss += loss.item()/ns
+        total_loss += loss.item() / ns
 
-        print(' loss: {}'.format(loss.item()/ns))
-        file.write("\nLoss for Batch {}: {}".format(i, loss.item()/ns))
+        print(' loss: {}'.format(loss.item() / ns))
+        file.write("\nLoss for Batch {}: {}".format(i, loss.item() / ns))
 
         num = np.random.randint(0, batch_size)
         bounds = np.random.randint(0, ns - batch_size)
         with torch.no_grad():
             plt.title('Predicted')
             _, pred = dl(torch.from_numpy(trajectory[bounds:bounds + batch_size]['s']).float(),
-                               torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float())
+                         torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float())
             plt.imshow(pred[num], cmap='gray')
             plt.savefig('./imgs_v2/Pred from Batch {}'.format(i))
         plt.title('Groundtruth')
@@ -215,6 +221,7 @@ def eval():
     print('Total Loss: {}'.format(total_loss))
     file.write("\nTotal Loss: {}".format(total_loss))
     file.close()
+
 
 if __name__ == '__main__':
     if args.mode == 'train':
