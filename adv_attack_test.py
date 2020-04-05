@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 
 from env.env import Env
-from agents.agent import Agent
+from agents.agents import Agent
 
 parser = argparse.ArgumentParser(description='Adversarial attacks on the CarRacing-v0 environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
@@ -27,7 +27,7 @@ if use_cuda:
 
 def test_attack():
     agent = Agent(args.img_stack, device)
-    agent.load_param(device)
+    agent.load_param()
     env = Env(args.seed, args.img_stack, args.action_repeat)
 
     # load adv input, by default general attack perturbation
@@ -71,7 +71,7 @@ def test_attack():
                     plt.show()
                 state += delta_s
 
-            action = agent.select_action(state, device)
+            action = agent.select_action(state)
             state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
             if args.render:
                 env.render()

@@ -7,7 +7,7 @@ import warnings
 
 from env.env import Env
 from networks.actor_critic import A2CNet
-from agents.agent import Agent
+from agents.agents import Agent
 from torch.utils.tensorboard import SummaryWriter
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -170,7 +170,7 @@ class AdvAttack:
 
 def run_agent():
     agent = Agent(args.img_stack, device)
-    agent.load_param(device)
+    agent.load_param()
     env = Env(args.seed, args.img_stack, args.action_repeat)
 
     state = env.reset()
@@ -185,7 +185,7 @@ def run_agent():
         state = env.reset()
 
         for t in range(1000):
-            action = agent.select_action(state, device)
+            action = agent.select_action(state)
             # update buffer for training the attack
             attack.update_buffer(state)
 

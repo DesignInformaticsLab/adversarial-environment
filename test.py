@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from env.env_adv import Env
-from agents.agent import Agent
+from agents.agents import Agent
 
 parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
@@ -20,7 +20,7 @@ if use_cuda:
 
 if __name__ == "__main__":
     agent = Agent(args.img_stack, device)
-    agent.load_param(device)
+    agent.load_param()
     env = Env(args.seed, args.img_stack, args.action_repeat)
 
     training_records = []
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         state = env.reset()
 
         for t in range(1000):
-            action = agent.select_action(state, device)
+            action = agent.select_action(state)
             state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
             if args.render:
                 env.render()
