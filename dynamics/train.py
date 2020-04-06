@@ -148,7 +148,7 @@ def train():
         running_loss = running_loss / no_of_batches
         print(' loss: {}'.format(running_loss))
 
-        if running_loss < 1e-3 or i == epochs - 1:
+        if running_loss < 1e-4 or i == epochs - 1:
             save_param(dynamics)
             break
 
