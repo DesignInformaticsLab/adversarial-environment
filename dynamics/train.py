@@ -42,7 +42,7 @@ lr = args.lr
 lmd = args.lmd
 
 weights_file_path = 'dynamics/param/learn_dynamics_lmd_{}.pkl'.format(lmd)
-data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}-no-zoom.npy'.format(int(sample_size), args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}.npy'.format(int(sample_size), args.seed)
 
 
 def collect_trajectories(agent, env, ns):
