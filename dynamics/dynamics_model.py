@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -32,6 +33,9 @@ class DynamicsModel(nn.Module):
         # next state prediction network as per koopman's theory
         self.big_lambda = nn.Linear(16, 16, bias=False)
         self.b_prime = nn.Linear(3, 16, bias=False)
+        # To ensure stability initialize only diagonal matrix
+        mask = torch.eye(16)
+        self.big_lambda.weight = nn.Parameter(torch.rand((16, 16)) * mask, requires_grad=True)
 
         # Decoding
         in_features = 16
