@@ -122,7 +122,7 @@ def test():
         running_loss += loss.item()
         no_of_batches += 1
 
-        print(' loss: {}'.format(running_loss / no_of_batches))
+        print('loss: {}'.format(running_loss / no_of_batches))
         file.write("\nLoss for Batch {}: {}".format(i, loss.item()))
 
         num = np.random.randint(0, batch_size)
