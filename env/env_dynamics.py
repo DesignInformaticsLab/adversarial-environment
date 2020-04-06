@@ -9,20 +9,20 @@ class EnvDynamics:
     Environment wrapper for model dynamics
     """
 
-    def __init__(self, seed, img_stack, device_name, c=0.7):
+    def __init__(self, seed, img_stack, device, c=0.7):
         self.img_stack = img_stack
         self.env = gym.make('CarRacingAdv-v0')
         self.env.seed(seed)
-        self.device = torch.device(device_name)
+        self.device = device
         # defined as T in paper
         self.unroll_length = 20
         # load model dynamics
-        self.dynamics = DynamicsModel(self.img_stack, 50, device_name).to(self.device)
-        self.__load_dynamics_params__(c, device_name)
+        self.dynamics = DynamicsModel(self.img_stack).to(self.device)
+        self.__load_dynamics_params__(c, device)
 
-    def __load_dynamics_params__(self, c, device_name):
-        weights_file = f'dynamics_model/param/learn_dynamics_lmd_{c}.pkl'
-        if device_name == 'cpu':
+    def __load_dynamics_params__(self, c, device):
+        weights_file = f'dynamics/param/learn_dynamics_lmd_{c}.pkl'
+        if device == torch.device('cpu'):
             self.dynamics.load_state_dict(torch.load(weights_file, map_location='cpu'))
         else:
             self.dynamics.load_state_dict(torch.load(weights_file))
@@ -38,8 +38,9 @@ class EnvDynamics:
         done = False
         s = torch.from_numpy(state).float().to(self.device).unsqueeze(0)
         a = torch.from_numpy(action).float().to(self.device).unsqueeze(0)
-        print(s.shape, a.shape)
-        _, state_ = self.dynamics(s, a)
+        with torch.no_grad():
+            _, state_ = self.dynamics(s, a)
+        state_ = state_.squeeze().cpu().numpy()
         self.counter += 1
         if self.counter == self.unroll_length:
             done = True
