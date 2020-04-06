@@ -28,7 +28,7 @@ args = parser.parse_args()
 
 # GPU parameters
 use_cuda = torch.cuda.is_available()
-device = torch.device("cuda" if use_cuda else "cpu")
+device = torch.device('cpu')
 torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
@@ -132,15 +132,15 @@ def test():
             recon, pred = dynamics(torch.from_numpy(trajectory[bounds:bounds + batch_size]['s']).float(),
                                torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float())
             plt.imshow(pred[num].reshape((96, 96)), cmap='gray')
-            plt.savefig('dynamics/imgs_v2/Pred_from_Batch_{}.png'.format(i))
+            plt.savefig('dynamics/imgs_v2/{}_Pred.png'.format(i))
             plt.imshow(recon[num].reshape((96, 96)), cmap='gray')
-            plt.savefig('dynamics/imgs_v2/Recon_from_Batch_{}.png'.format(i))
+            plt.savefig('dynamics/imgs_v2/{}_Recon.png'.format(i))
         plt.title('Ground Truth current')
         plt.imshow(trajectory[bounds:bounds + batch_size]['s'][num, 3, :, :].reshape((96, 96)), cmap='gray')
-        plt.savefig('dynamics/imgs_v2/GT_curr_from_Batch_{}.png'.format(i))
+        plt.savefig('dynamics/imgs_v2/{}_GT_curr.png'.format(i))
         plt.title('Ground Truth next')
         plt.imshow(trajectory[bounds:bounds + batch_size]['s_'][num, 3, :, :].reshape((96, 96)), cmap='gray')
-        plt.savefig('dynamics/imgs_v2/GT_next_from_Batch_{}.png'.format(i))
+        plt.savefig('dynamics/imgs_v2/{}_GT_next.png'.format(i))
 
         i += 1
 
