@@ -24,7 +24,7 @@ parser.add_argument('--epochs', type=int, default=500, help='number of epochs th
 parser.add_argument('--sample_size', type=float, default=1e4, help='sample size for collect trajectories')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size for training the model')
 parser.add_argument('--lr', type=float, default=1e-2, help='learning rate for training the model')
-parser.add_argument('--lmd', type=float, default=1, help='specifies weight balance between AE loss and dynamics loss')
+parser.add_argument('--lmd', type=float, default=1.0, help='specifies weight balance between AE loss and dynamics loss')
 args = parser.parse_args()
 
 # GPU parameters
