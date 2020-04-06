@@ -46,7 +46,7 @@ writer = SummaryWriter(writer_name)
 def run_agent():
     agent = Agent(args.img_stack, device)
     agent.load_param()
-    env = EnvDynamics(args.seed, args.img_stack, device, 1)
+    env = EnvDynamics(args.seed, args.img_stack, device, 1.0)
 
     for i_ep in range(10):
         state = env.reset()
