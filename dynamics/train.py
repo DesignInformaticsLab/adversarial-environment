@@ -137,7 +137,7 @@ def train():
             optimizer.step()
 
             # enforce constraints on big_lambda
-            mask = torch.eye(16)
+            mask = torch.eye(16).to(device)
             with torch.no_grad():
                 dynamics.big_lambda.weight.data = dynamics.big_lambda.weight.data * mask
                 torch.clamp(dynamics.big_lambda.weight.data, 0, 1)
