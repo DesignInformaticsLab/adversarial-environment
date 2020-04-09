@@ -3,3 +3,10 @@
 venv/
 __pycache__/
 runs
+dynamics/trajectories
+dynamics/imgs_v2
+
+# helper scripts
+sbatch_gpu.sh
+copy_files.sh
+run_script.sh
