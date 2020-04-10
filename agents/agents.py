@@ -21,6 +21,12 @@ class Agent:
         action = action.squeeze().cpu().numpy()
         return action
 
+    def select_action_with_grad(self, state):
+        state = state.to(self.device).unsqueeze(0)
+        alpha, beta = self.net(state)[0]
+        action = alpha / (alpha + beta)
+        return action.squeeze()
+
     def load_param(self):
         if self.device == torch.device('cpu'):
             self.net.load_state_dict(torch.load('param/ppo_net_params.pkl', map_location='cpu'))
