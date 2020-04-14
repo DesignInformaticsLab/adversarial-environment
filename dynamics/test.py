@@ -41,7 +41,7 @@ lr = args.lr
 lmd = args.lmd
 
 weights_file_path = 'dynamics/param/learn_dynamics_lmd_{}.pkl'.format(lmd)
-data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}.npy'.format(int(sample_size), args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}.npy'.format(int(2*sample_size), args.seed)
 
 
 def collect_trajectories(agent, env, ns):
@@ -110,7 +110,7 @@ def test():
     i = 0
     file = open("dynamics/imgs_v2/Losses.txt", "w")
     file.write("Seed {}".format(args.seed))
-    for index in BatchSampler(SubsetRandomSampler(range(int(sample_size))), batch_size, False):
+    for index in BatchSampler(SubsetRandomSampler(range(int(2*sample_size))), batch_size, False):
         with torch.no_grad():
             pred_s, dyn_pred = dynamics(s[index], a[index])
 
