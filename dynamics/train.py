@@ -42,7 +42,7 @@ lr = args.lr
 lmd = args.lmd
 
 weights_file_path = 'dynamics/param/learn_dynamics_lmd_{}.pkl'.format(lmd)
-data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}.npy'.format(int(sample_size), args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-trajectories-seed-{}.npy'.format(int(2*sample_size), args.seed)
 
 
 def collect_trajectories(agent, env, ns):
@@ -125,7 +125,7 @@ def train():
     print('Training')
     for i in tqdm.trange(epochs):
         running_loss, no_of_batches = 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(int(sample_size))), batch_size, False):
+        for index in BatchSampler(SubsetRandomSampler(range(int(2*sample_size))), batch_size, False):
             p_s, p_s_ = dynamics(s[index], a[index])
             pred_s = torch.cat((s[index][:, :3, :, :], p_s), dim=1)
             pred_s_ = torch.cat((next_s[index][:, :3, :, :], p_s_), dim=1)
