@@ -45,7 +45,7 @@ if args.mode == 'test':
     args.seed = 88
 
 weights_file_path = 'dynamics/param/VAE.pkl'
-data_file_path = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/trajectories/{}-ns-seed-{}-trajectories.npy'.format(int(2*sample_size), args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories.npy'.format(int(2*sample_size), args.seed)
 
 
 class VAE(nn.Module):
