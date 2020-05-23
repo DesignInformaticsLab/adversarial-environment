@@ -47,7 +47,7 @@ if args.mode == 'test':
     args.seed = 88
 
 weights_file_path = 'dynamics/param/VAE.pkl'
-data_file_path = 'dynamics/trajectories/{}-episodes-seed-{}-trajectories'.format(episodes, args.seed)
+data_file_path = 'dynamics/trajectories/{}-episodes-seed-{}-trajectories.npz'.format(episodes, args.seed)
 print(data_file_path)
 
 
