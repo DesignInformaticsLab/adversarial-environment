@@ -10,6 +10,7 @@ import tqdm
 import sys
 import os
 import matplotlib.pyplot as plt
+import glob
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env.env_adv import Env
@@ -22,7 +23,7 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--epochs', type=int, default=50, help='number of epochs the model needs to be trained')
-parser.add_argument('--sample_size', type=float, default=5e3, help='sample size for collect trajectories')
+parser.add_argument('--sample_size', type=float, default=5, help='sample size for collect trajectories')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size for training the model')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate for training the model')
 parser.add_argument('--mode', type=str, default='train', help='set mode for VAE')
@@ -37,15 +38,18 @@ if use_cuda:
 
 # Hyper Parameters
 epochs = args.epochs
-sample_size = args.sample_size
+sample_size = int(args.sample_size)
 batch_size = args.batch_size
 lr = args.lr
+MAX_TRIALS = 20
+MAX_FRAMES = 1000
 
 if args.mode == 'test':
     args.seed = 88
 
 weights_file_path = 'dynamics/param/VAE.pkl'
-data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories.npy'.format(int(2*sample_size), args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories'.format(2*sample_size, args.seed)
+print(data_file_path)
 
 
 class VAE(nn.Module):
@@ -119,41 +123,26 @@ class VAE(nn.Module):
 
         return torch.sigmoid(self.d4(x))
 
-def collect_rollouts(agent, env, ns):
-    counter = 0
-    # initialize empty buffer of size ns
-    buffer = np.empty([ns, 96, 96])
-    state = env.reset()
-
-    while counter < ns:
-        action = agent.select_action(state)
-        state_, _, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
-        buffer[counter] = state_[3]
-        state = state_
-        if done or die:
-            state = env.reset()
-        counter += 1
-
-    return buffer
-
 def collect_trajectories(agent, env, ns):
-    counter = 0
-    # initialize empty buffer of size ns
-    trajectory_type = np.dtype([('s', np.float64, (args.img_stack, 96, 96)), ('a', np.float64, (3,)),
-                                ('s_', np.float64, (args.img_stack, 96, 96))])
-    buffer = np.empty(int(ns), dtype=trajectory_type)
+    s = []
+    a = []
+    next_s = []
+
     state = env.reset()
 
-    while counter < ns:
-        action = agent.select_action(state)
-        state_, _, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
-        buffer[counter] = (state, action, state_)
-        state = state_
-        if done or die:
-            state = env.reset()
-        counter += 1
+    for _ in range(ns):
+        for _ in range(MAX_FRAMES):
+            action = agent.select_action(state)
+            state_, _, done, _ = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
+            s.append(state)
+            next_s.append(state_)
+            a.append(action)
+            state = state_
+            if done:
+                state = env.reset()
+                break
 
-    return buffer
+    return s, a, next_s
 
 def save_param(net):
     file_path = weights_file_path
@@ -191,22 +180,23 @@ def train():
     # Initialize optimizer
     optimizer = optim.Adam(vae.parameters(), lr=lr)
 
-    # Look for trajectory file if present
+    # Look for trajectory dir if present
     if os.path.isfile(data_file_path):
         print('Trajectory found, Loading data ...')
-        trajectory = np.load(data_file_path)
+        file = np.load(data_file_path)
+        s = file['s']
         print('Trajectories loaded')
     else:
-        print('Collecting Pre-trained Policy Trajectories')
-        buffer = collect_trajectories(agent, env, sample_size)
+        # print('Collecting Pre-trained Policy Trajectories')
+        # buffer = collect_trajectories(agent, env, sample_size)
         print('Collecting Random Trajectories')
-        rand_buffer = collect_trajectories(rand_agent, env, sample_size)
+        s, a, next_s = collect_trajectories(rand_agent, env, sample_size)
 
-        trajectory = np.concatenate([buffer, rand_buffer])
-        np.save(data_file_path, trajectory)
+        np.savez_compressed(data_file_path, s=s, a=a, next_s=next_s)
         print('Trajectories Data saved in ', data_file_path)
 
-    images = torch.tensor(trajectory['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
+
+    images = torch.tensor(s[:, 3], dtype=torch.float).unsqueeze(1).to(device)
 
     vae.train()
     # if os.path.isfile(weights_file_path):
@@ -215,7 +205,7 @@ def train():
     print('Training')
     for i in tqdm.trange(epochs):
         running_loss, mse_loss, kld_loss, no_of_batches = 0, 0, 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(int(2*sample_size))), batch_size, False):
+        for index in BatchSampler(SubsetRandomSampler(range(2*sample_size)), batch_size, False):
             recon_images, _, mu, logvar = vae(images[index])
 
             loss, mse, kld = loss_fn(recon_images, images[index], mu, logvar)
@@ -250,22 +240,22 @@ def test():
     # Initialize dynamics model
     vae = VAE()
 
-    # Look for trajectory file if present
+    # Look for trajectory dir if present
     if os.path.isfile(data_file_path):
         print('Trajectory found, Loading data ...')
-        trajectory = np.load(data_file_path)
+        file = np.load(data_file_path)
+        s = file['s']
         print('Trajectories loaded')
     else:
-        print('Collecting Pre-trained Policy Trajectories')
-        buffer = collect_trajectories(agent, env, sample_size)
+        # print('Collecting Pre-trained Policy Trajectories')
+        # buffer = collect_trajectories(agent, env, sample_size)
         print('Collecting Random Trajectories')
-        rand_buffer = collect_trajectories(rand_agent, env, sample_size)
+        s, a, next_s = collect_trajectories(rand_agent, env, sample_size)
 
-        trajectory = np.concatenate([buffer, rand_buffer])
-        np.save(data_file_path, trajectory)
+        np.savez_compressed(data_file_path, s=s, a=a, next_s=next_s)
         print('Trajectories Data saved in ', data_file_path)
 
-    images = torch.tensor(trajectory['s_'][:, 3], dtype=torch.float)
+    images = torch.tensor(s[:, 3], dtype=torch.float)
 
     vae.eval()
     load_param(vae)
@@ -276,7 +266,7 @@ def test():
     i = 0
     file = open("dynamics/imgs_v2/Losses.txt", "w")
     file.write("Seed {}".format(args.seed))
-    for index in BatchSampler(SubsetRandomSampler(range(int(2 * sample_size))), batch_size, False):
+    for index in BatchSampler(SubsetRandomSampler(range(2 * sample_size)), batch_size, False):
         with torch.no_grad():
             recon_images, _, mu, logvar = vae(images[index])
 
