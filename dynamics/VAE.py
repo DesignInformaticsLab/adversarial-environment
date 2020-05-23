@@ -23,7 +23,7 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--epochs', type=int, default=50, help='number of epochs the model needs to be trained')
-parser.add_argument('--sample_size', type=float, default=5, help='sample size for collect trajectories')
+parser.add_argument('--episodes', type=float, default=1000, help='number of episodes to collect trajectories')
 parser.add_argument('--batch_size', type=int, default=128, help='batch size for training the model')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate for training the model')
 parser.add_argument('--mode', type=str, default='train', help='set mode for VAE')
@@ -38,7 +38,7 @@ if use_cuda:
 
 # Hyper Parameters
 epochs = args.epochs
-sample_size = int(args.sample_size)
+episodes = int(args.episodes)
 batch_size = args.batch_size
 lr = args.lr
 MAX_TRIALS = 20
@@ -48,7 +48,7 @@ if args.mode == 'test':
     args.seed = 88
 
 weights_file_path = 'dynamics/param/VAE.pkl'
-data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories'.format(2*sample_size, args.seed)
+data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories'.format(2*episodes, args.seed)
 print(data_file_path)
 
 
@@ -188,9 +188,9 @@ def train():
         print('Trajectories loaded')
     else:
         # print('Collecting Pre-trained Policy Trajectories')
-        # buffer = collect_trajectories(agent, env, sample_size)
+        # buffer = collect_trajectories(agent, env, episodes)
         print('Collecting Random Trajectories')
-        s, a, next_s = collect_trajectories(rand_agent, env, sample_size)
+        s, a, next_s = collect_trajectories(rand_agent, env, episodes)
 
         np.savez_compressed(data_file_path, s=s, a=a, next_s=next_s)
         print('Trajectories Data saved in ', data_file_path)
@@ -205,7 +205,7 @@ def train():
     print('Training')
     for i in tqdm.trange(epochs):
         running_loss, mse_loss, kld_loss, no_of_batches = 0, 0, 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(2*sample_size)), batch_size, False):
+        for index in BatchSampler(SubsetRandomSampler(range(2*episodes)), batch_size, False):
             recon_images, _, mu, logvar = vae(images[index])
 
             loss, mse, kld = loss_fn(recon_images, images[index], mu, logvar)
@@ -248,9 +248,9 @@ def test():
         print('Trajectories loaded')
     else:
         # print('Collecting Pre-trained Policy Trajectories')
-        # buffer = collect_trajectories(agent, env, sample_size)
+        # buffer = collect_trajectories(agent, env, episodes)
         print('Collecting Random Trajectories')
-        s, a, next_s = collect_trajectories(rand_agent, env, sample_size)
+        s, a, next_s = collect_trajectories(rand_agent, env, episodes)
 
         np.savez_compressed(data_file_path, s=s, a=a, next_s=next_s)
         print('Trajectories Data saved in ', data_file_path)
@@ -266,7 +266,7 @@ def test():
     i = 0
     file = open("dynamics/imgs_v2/Losses.txt", "w")
     file.write("Seed {}".format(args.seed))
-    for index in BatchSampler(SubsetRandomSampler(range(2 * sample_size)), batch_size, False):
+    for index in BatchSampler(SubsetRandomSampler(range(2 * episodes)), batch_size, False):
         with torch.no_grad():
             recon_images, _, mu, logvar = vae(images[index])
 
@@ -281,7 +281,7 @@ def test():
         file.write("\nLoss for Batch {}: {} mse: {} kld: {}".format(i, loss.item(), mse.item(), kld.item()))
 
         num = np.random.randint(0, batch_size)
-        bounds = np.random.randint(0, sample_size - batch_size)
+        bounds = np.random.randint(0, episodes - batch_size)
         with torch.no_grad():
             plt.title('Reconstruction')
             recon, _, _ = vae(images[bounds:bounds + batch_size])
