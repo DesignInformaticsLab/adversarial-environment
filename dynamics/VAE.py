@@ -41,14 +41,13 @@ epochs = args.epochs
 episodes = int(args.episodes)
 batch_size = args.batch_size
 lr = args.lr
-MAX_TRIALS = 20
 MAX_FRAMES = 1000
 
 if args.mode == 'test':
     args.seed = 88
 
 weights_file_path = 'dynamics/param/VAE.pkl'
-data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories'.format(2*episodes, args.seed)
+data_file_path = 'dynamics/trajectories/{}-episodes-seed-{}-trajectories'.format(episodes, args.seed)
 print(data_file_path)
 
 
@@ -205,7 +204,7 @@ def train():
     print('Training')
     for i in tqdm.trange(epochs):
         running_loss, mse_loss, kld_loss, no_of_batches = 0, 0, 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(2*episodes)), batch_size, False):
+        for index in BatchSampler(SubsetRandomSampler(range(len(images))), batch_size, False):
             recon_images, _, mu, logvar = vae(images[index])
 
             loss, mse, kld = loss_fn(recon_images, images[index], mu, logvar)
@@ -266,7 +265,7 @@ def test():
     i = 0
     file = open("dynamics/imgs_v2/Losses.txt", "w")
     file.write("Seed {}".format(args.seed))
-    for index in BatchSampler(SubsetRandomSampler(range(2 * episodes)), batch_size, False):
+    for index in BatchSampler(SubsetRandomSampler(range(len(images))), batch_size, False):
         with torch.no_grad():
             recon_images, _, mu, logvar = vae(images[index])
 
