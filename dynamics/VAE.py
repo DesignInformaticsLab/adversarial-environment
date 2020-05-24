@@ -120,7 +120,7 @@ class VAE(nn.Module):
         for l in deconv_layers:
             x = F.relu(l(x))
 
-        return torch.sigmoid(self.d4(x))
+        return torch.tanh(self.d4(x))
 
 def collect_trajectories(agent, env, ns):
     s = []
