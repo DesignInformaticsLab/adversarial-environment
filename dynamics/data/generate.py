@@ -70,7 +70,7 @@ def generate_data(agent, env):
             state = state_
             if t == 999 or done:
                 print('> End of thread {}, episode {}, {} frames...'.format(args.thread_no, i + 1, len(state_seq)))
-                np.savez(join(final_dir, 'episode_{}'.format(i + 1)),
+                np.savez_compressed(join(final_dir, 'episode_{}'.format(i + 1)),
                          states=np.array(state_seq),
                          actions=np.array(action_seq),
                          next_states=np.array(next_state_seq))
