@@ -1,23 +1,24 @@
 import torch
+import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 import numpy as np
-import matplotlib.pyplot as plt
 import argparse
 import warnings
+import tqdm
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env.env_adv import Env
 from agents.agents import Agent, RandomAgent
-from dynamics.dynamics_model import DynamicsModel
+from dynamics.models.dynamics_model import DynamicsModel
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 parser = argparse.ArgumentParser(description='Learn Dynamics Model of Environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
-parser.add_argument('--seed', type=int, default=88, metavar='N', help='random seed (default: 0)')
+parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--epochs', type=int, default=500, help='number of epochs the model needs to be trained')
 parser.add_argument('--sample_size', type=float, default=1e4, help='sample size for collect trajectories')
@@ -28,7 +29,7 @@ args = parser.parse_args()
 
 # GPU parameters
 use_cuda = torch.cuda.is_available()
-device = torch.device('cpu')
+device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
@@ -64,6 +65,12 @@ def collect_trajectories(agent, env, ns):
     return buffer
 
 
+def save_param(net):
+    file_path = weights_file_path
+    torch.save(net.state_dict(), file_path)
+    print('NN saved in ', file_path)
+
+
 def load_param(net):
     if device == torch.device('cpu'):
         net.load_state_dict(torch.load(weights_file_path, map_location='cpu'))
@@ -80,74 +87,85 @@ def combined_loss(pred_state, gt_state, pred_state_, gt_state_):
     return AE_loss + lmd * dynamics_loss
 
 
-def test():
+def train():
+    # Initialize pre-trained policy agent and random agent
     agent = Agent(args.img_stack, device)
     agent.load_param()
     rand_agent = RandomAgent(args.img_stack, device)
+    # Initialize environment
     env = Env(args.seed, args.img_stack, args.action_repeat)
-    dynamics = DynamicsModel(args.img_stack)
+    # Initialize dynamics model
+    dynamics = DynamicsModel(args.img_stack).to(device)
+    # Initialize optimizer
+    optimizer = optim.Adam(dynamics.parameters(), lr=lr)
 
+    # Look for trajectory file if present
     if os.path.isfile(data_file_path):
-        print('Trajectory found, Loading data...')
+        print('Trajectory found, Loading data ...')
         trajectory = np.load(data_file_path)
+        print('Trajectories loaded')
     else:
-        print('Collecting Trajectories')
+        print('Collecting Pre-trained Policy Trajectories')
         buffer = collect_trajectories(agent, env, sample_size)
         print('Collecting Random Trajectories')
         rand_buffer = collect_trajectories(rand_agent, env, sample_size)
 
         trajectory = np.concatenate([buffer, rand_buffer])
         np.save(data_file_path, trajectory)
-        print('Data saved in ', data_file_path)
+        print('Trajectories Data saved in ', data_file_path)
 
     s = torch.tensor(trajectory['s'], dtype=torch.float).to(device)
     a = torch.tensor(trajectory['a'], dtype=torch.float).to(device)
     next_s = torch.tensor(trajectory['s_'], dtype=torch.float).to(device)
 
-    load_param(dynamics)
+    dynamics.train()
+    if os.path.isfile(weights_file_path):
+        load_param(dynamics)
 
-    running_loss, no_of_batches = 0, 0
-    i = 0
-    file = open("dynamics/imgs_v2/Losses.txt", "w")
-    file.write("Seed {}".format(args.seed))
-    for index in BatchSampler(SubsetRandomSampler(range(int(sample_size))), batch_size, False):
-        with torch.no_grad():
-            pred_s, dyn_pred = dynamics(s[index], a[index])
-
-            pred_s = torch.cat((s[index][:, :3, :, :], pred_s), dim=1)
-            pred_s_ = torch.cat((next_s[index][:, :3, :, :], dyn_pred), dim=1)
+    print('Training')
+    for i in tqdm.trange(epochs):
+        running_loss, no_of_batches = 0, 0
+        for index in BatchSampler(SubsetRandomSampler(range(int(sample_size))), batch_size, False):
+            p_s, p_s_ = dynamics(s[index], a[index])
+            pred_s = torch.cat((s[index][:, :3, :, :], p_s), dim=1)
+            pred_s_ = torch.cat((next_s[index][:, :3, :, :], p_s_), dim=1)
 
             loss = combined_loss(pred_s, s[index], pred_s_, next_s[index])
 
-        running_loss += loss.item()
-        no_of_batches += 1
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        print('loss: {}'.format(running_loss / no_of_batches))
-        file.write("\nLoss for Batch {}: {}".format(i, loss.item()))
+            # enforce constraints on big_lambda
+            mask = torch.eye(16).to(device)
+            with torch.no_grad():
+                dynamics.big_lambda.weight.data = dynamics.big_lambda.weight.data * mask
+                torch.clamp(dynamics.big_lambda.weight.data, 0, 1)
 
-        num = np.random.randint(0, batch_size)
-        bounds = np.random.randint(0, sample_size - batch_size)
-        with torch.no_grad():
-            plt.title('Predicted')
-            recon, pred = dynamics(torch.from_numpy(trajectory[bounds:bounds + batch_size]['s']).float(),
-                               torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float())
-            plt.imshow(pred[num].reshape((96, 96)), cmap='gray')
-            plt.savefig('dynamics/imgs_v2/{}_Pred.png'.format(i))
-            plt.imshow(recon[num].reshape((96, 96)), cmap='gray')
-            plt.savefig('dynamics/imgs_v2/{}_Recon.png'.format(i))
-        plt.title('Ground Truth current')
-        plt.imshow(trajectory[bounds:bounds + batch_size]['s'][num, 3, :, :].reshape((96, 96)), cmap='gray')
-        plt.savefig('dynamics/imgs_v2/{}_GT_curr.png'.format(i))
-        plt.title('Ground Truth next')
-        plt.imshow(trajectory[bounds:bounds + batch_size]['s_'][num, 3, :, :].reshape((96, 96)), cmap='gray')
-        plt.savefig('dynamics/imgs_v2/{}_GT_next.png'.format(i))
+            running_loss += loss.item()
+            no_of_batches += 1
 
-        i += 1
+        running_loss = running_loss / no_of_batches
+        print(' loss: {}'.format(running_loss))
 
-    print('Total Loss: {}'.format(running_loss))
-    file.write("\nTotal Loss: {}".format(running_loss))
-    file.close()
+        if running_loss < 1e-4 or i == epochs - 1:
+            save_param(dynamics)
+            break
+
+        # if i % 100 == 0:
+        #     num = np.random.randint(0, batch_size)
+        #     bounds = np.random.randint(0, ns - batch_size)
+        #     with torch.no_grad():
+        #         plt.title('Predicted')
+        #         _, pred = dl(torch.from_numpy(trajectory[bounds:bounds + batch_size]['s']).float().cuda(),
+        #                      torch.from_numpy(trajectory[bounds:bounds + batch_size]['a']).float().cuda())
+        #         plt.imshow(pred.cpu()[num])
+        #         plt.show()
+        #     plt.title('Groundtruth')
+        #     plt.imshow(trajectory[bounds:bounds + batch_size]['s_'][num, 3, :, :])
+        #     plt.show()
+    print('Training done')
 
 
 if __name__ == '__main__':
-    test()
+    train()
