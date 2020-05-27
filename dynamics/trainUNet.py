@@ -98,6 +98,7 @@ def train():
 
 
     if os.path.isfile(data_file_path):
+        print('Trajectory Found. Loading data...')
         rand_buffer = np.load(data_file_path)['arr_0']
         test_rand_buffer = np.load(test_data_file_path)['arr_0']
     else:
