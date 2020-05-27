@@ -140,7 +140,7 @@ def train():
             for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
                 recon_images = unet(images_test[index])
 
-                test_loss = loss_fn(recon_images, images[index])
+                test_loss = loss_fn(recon_images, images_test[index])
 
                 test_running_loss += test_loss.item()
                 test_batch += 1
