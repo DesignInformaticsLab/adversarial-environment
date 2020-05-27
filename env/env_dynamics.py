@@ -1,7 +1,7 @@
 import gym
 import numpy as np
 import torch
-from dynamics.dynamics_model import DynamicsModel
+from dynamics.models.dynamics_model import DynamicsModel
 
 
 class EnvDynamics:
