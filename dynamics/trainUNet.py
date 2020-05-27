@@ -121,8 +121,8 @@ def train():
     for i in tqdm.trange(epochs):
         running_loss, no_of_batches = 0, 0
         test_running_loss, test_batch = 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(len(images))), batch_size, False):
-            recon_images, _ = unet(images[index])
+        for index in BatchSampler(SubsetRandomSampler(range(images.shape[0])), batch_size, False):
+            recon_images = unet(images[index])
 
             loss = loss_fn(recon_images, images[index])
 
@@ -137,8 +137,8 @@ def train():
         print(' loss: ' , running_loss)
 
         with torch.no_grad():
-            for index in BatchSampler(SubsetRandomSampler(range(len(images_test))), batch_size, False):
-                recon_images, _ = unet(images_test[index])
+            for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
+                recon_images = unet(images_test[index])
 
                 test_loss = loss_fn(recon_images, images[index])
 
