@@ -116,7 +116,7 @@ def train():
 
     # Convert Trajectories to tensor
     images = torch.tensor(rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
-    images_test = torch.tensor(test_rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
+    test_images = torch.tensor(test_rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
 
     unet.train()
 
@@ -140,10 +140,10 @@ def train():
         print(' loss: ' , running_loss)
 
         with torch.no_grad():
-            for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
-                recon_images = unet(images_test[index])
+            for index in BatchSampler(SubsetRandomSampler(range(test_images.shape[0])), batch_size, False):
+                recon_images = unet(test_images[index])
 
-                test_loss = loss_fn(recon_images, images_test[index])
+                test_loss = loss_fn(recon_images, test_images[index])
 
                 test_running_loss += test_loss.item()
                 test_batch += 1
