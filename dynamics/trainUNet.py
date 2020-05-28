@@ -102,6 +102,9 @@ def train():
         rand_buffer = np.load(data_file_path)['arr_0']
         test_rand_buffer = np.load(test_data_file_path)['arr_0']
     else:
+        if not os.path.isdir('dynamics/trajectories'):
+            os.mkdir('dynamics/trajectories')
+
         print('Collecting Random Trajectories')
         rand_buffer = collect_trajectories(rand_agent, env, sample_size)
         np.savez_compressed(data_file_path, rand_buffer)
