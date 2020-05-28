@@ -1,18 +1,16 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import torch.optim as optim
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
 import argparse
 import warnings
-import tqdm
 import sys
 import os
+import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env.env_adv import Env
 from agents.agents import Agent, RandomAgent
-from dynamics.utils import EarlyStopping, ReduceLROnPlateau
 from dynamics.models.UNet import UNet
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -30,9 +28,9 @@ args = parser.parse_args()
 # GPU parameters
 use_cuda = torch.cuda.is_available()
 device = torch.device("cuda" if use_cuda else "cpu")
-torch.manual_seed(args.seeds[0])
+torch.manual_seed(args.seeds[1])
 if use_cuda:
-    torch.cuda.manual_seed(args.seeds[0])
+    torch.cuda.manual_seed(args.seeds[1])
 
 # Hyper Parameters
 epochs = args.epochs
@@ -41,8 +39,8 @@ batch_size = args.batch_size
 lr = args.lr
 
 weights_file_path = 'dynamics/param/UNet.pkl'
-data_file_path = 'dynamics/trajectories/random-{}-ns-seed-{}-trajectories.npz'.format(int(sample_size), args.seeds[0])
-test_data_file_path = 'dynamics/trajectories/random-{}-ns-seed-{}-trajectories.npz'.format(int(sample_size), args.seeds[1])
+test_data_file_path = 'dynamics/trajectories/{}-ns-seed-{}-trajectories.npz'.format(int(sample_size), args.seeds[1])
+img_data_file_path = 'dynamics/imgs'
 
 def collect_trajectories(agent, env, ns):
     counter = 0
@@ -81,7 +79,7 @@ def loss_fn(recon_x, x):
 
     return MSE
 
-def train():
+def test():
     # Initialize pre-trained policy agent and random agent
     agent = Agent(args.img_stack, device)
     agent.load_param()
@@ -90,79 +88,67 @@ def train():
     env = Env(args.seeds[0], args.img_stack, args.action_repeat)
     test_env = Env(args.seeds[1], args.img_stack, args.action_repeat)
     # Initialize UNet model
-    unet = UNet().to(device)
-    # Initialize optimizer and setup scheduler and earlystopping
-    optimizer = optim.Adam(unet.parameters())
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
-    earlystopping = EarlyStopping('min', patience=30)
+    unet = UNet()
 
+    # Make image dir if it does not exist
+    if not os.path.isdir(img_data_file_path):
+        os.mkdir(img_data_file_path)
 
-    if os.path.isfile(data_file_path):
+    # Load saved weights into model
+    load_param(unet)
+
+    if os.path.isfile(test_data_file_path):
         print('Trajectory Found. Loading data...')
-        rand_buffer = np.load(data_file_path)['arr_0']
         test_rand_buffer = np.load(test_data_file_path)['arr_0']
     else:
-        print('Collecting Random Trajectories')
-        rand_buffer = collect_trajectories(rand_agent, env, sample_size)
-        np.savez_compressed(data_file_path, rand_buffer)
-        print('Saved Random Trajectories in ', data_file_path)
-        print('Collecting Random Test Trajectories')
-        test_rand_buffer = collect_trajectories(rand_agent, test_env, sample_size)
+        print('Collecting Test Trajectories')
+        test_rand_buffer = collect_trajectories(agent, test_env, sample_size)
         np.savez_compressed(test_data_file_path, test_rand_buffer)
         print('Saved Test Random Trajectories in ', test_data_file_path)
 
     # Convert Trajectories to tensor
-    images = torch.tensor(rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
-    images_test = torch.tensor(test_rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1).to(device)
+    images_test = torch.tensor(test_rand_buffer['s_'][:, 3], dtype=torch.float).unsqueeze(1)
 
-    unet.train()
+    unet.eval()
 
-    print('Training')
-    for i in tqdm.trange(epochs):
-        running_loss, no_of_batches = 0, 0
-        test_running_loss, test_batch = 0, 0
-        for index in BatchSampler(SubsetRandomSampler(range(images.shape[0])), batch_size, False):
-            recon_images = unet(images[index])
+    file = open(os.path.join(img_data_file_path, "Losses.txt"), "w")
+    file.write("Seed {}".format(args.seeds[1]))
 
-            loss = loss_fn(recon_images, images[index])
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item()
-            no_of_batches += 1
-
-        running_loss = running_loss / no_of_batches
-        print(' loss: ' , running_loss)
-
+    print('Evaluation')
+    i = 0
+    test_running_loss, test_batch = 0, 0
+    for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
         with torch.no_grad():
-            for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
-                recon_images = unet(images_test[index])
+            recon_images = unet(images_test[index])
 
-                test_loss = loss_fn(recon_images, images_test[index])
+            test_loss = loss_fn(recon_images, images_test[index])
 
-                test_running_loss += test_loss.item()
-                test_batch += 1
+        test_running_loss += test_loss.item()
+        test_batch += 1
 
-            test_running_loss = test_running_loss / test_batch
+        test_running_loss = test_running_loss / test_batch
 
-            print(' test loss: ', test_running_loss)
+        print(' test loss: ', test_running_loss)
+        file.write("\nLoss for Batch {}: {}".format(i, test_loss.item()))
 
-        scheduler.step(test_running_loss)
-        earlystopping.step(test_running_loss)
+        # Choose random batch and random image within that batch for visualization
+        num = np.random.randint(0, batch_size)
+        bounds = np.random.randint(0, sample_size - batch_size)
+        with torch.no_grad():
+            plt.title('Predicted')
+            recon = unet(images_test[bounds:bounds + batch_size])
+            plt.imshow(recon[num].reshape((96, 96)), cmap='gray')
+            plt.savefig(os.path.join(img_data_file_path, '{}_Recon.png'.format(i)))
+        plt.title('Ground Truth current')
+        plt.imshow(images_test[bounds:bounds + batch_size][num, :, :].reshape((96, 96)), cmap='gray')
+        plt.savefig(os.path.join(img_data_file_path, '{}_GT.png'.format(i)))
 
-        if earlystopping.stop:
-            save_param(unet)
-            print('Training Stopped Early at epoch ', i)
-            break
+        i += 1
 
-        if running_loss < 1e-4 or i == epochs - 1:
-            save_param(unet)
-            break
-
-    print('Training done')
+    print('Total Loss: {}'.format(test_running_loss))
+    file.write("\nTotal Loss: {}".format(test_running_loss))
+    file.close()
 
 
 if __name__ == '__main__':
-    train()
+    test()
