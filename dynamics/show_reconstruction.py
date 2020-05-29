@@ -7,13 +7,14 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from agents.agents import Agent
-from env.env_adv import Env
+from agents.agents import Agent, RandomAgent
+from env.env_adv import Env, EnvRandom
 from dynamics.models.UNet import UNet
 
 parser = argparse.ArgumentParser(description='Show reconstruction of CarRacingAdv environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
+parser.add_argument('--policy', type=str, choices=['random', 'pretrained'], help='Policy to be chosen for agent')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--save', action='store_true', help='save the video')
 args = parser.parse_args()
@@ -23,6 +24,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 
 def get_recon(net, img):
@@ -34,9 +36,15 @@ def get_recon(net, img):
 
 if __name__ == "__main__":
     # Initialize environment and agent
-    agent = Agent(args.img_stack, device)
-    agent.load_param()
-    env = Env(args.seed, args.img_stack, args.action_repeat)
+    env, agent = None, None
+    if args.policy == 'random':
+        env = EnvRandom(args.seed, args.img_stack, args.action_repeat)
+        agent = RandomAgent(env, args.seed, device)
+        agent.generate_actions()
+    elif args.policy == 'pretrained':
+        env = Env(args.seed, args.img_stack, args.action_repeat)
+        agent = Agent(args.img_stack, device)
+        agent.load_param()
     # load VAE
     vae = UNet().to(device)
     vae.eval()

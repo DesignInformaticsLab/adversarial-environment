@@ -69,3 +69,18 @@ class Env():
             return np.mean(history)
 
         return memory
+
+
+class EnvRandom(Env):
+    def step(self, action):
+        total_reward = 0
+        for i in range(self.action_repeat):
+            img_rgb, reward, done, _ = self.env.step(action)
+            total_reward += reward
+            if done:
+                break
+        img_gray = self.rgb2gray(img_rgb)
+        self.stack.pop(0)
+        self.stack.append(img_gray)
+        assert len(self.stack) == self.img_stack
+        return np.array(self.stack), total_reward, done, False
