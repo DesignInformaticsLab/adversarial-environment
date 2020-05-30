@@ -82,13 +82,12 @@ def loss_fn(recon_x, x):
     return MSE
 
 def train():
-    # Initialize pre-trained policy agent and random agent
-    agent = Agent(args.img_stack, device)
-    agent.load_param()
-    rand_agent = RandomAgent(args.img_stack, device)
     # Initialize environments
     env = Env(args.seeds[0], args.img_stack, args.action_repeat)
     test_env = Env(args.seeds[1], args.img_stack, args.action_repeat)
+    # Initialize random agent
+    rand_agent = RandomAgent(args.img_stack, env, args.seeds[0], device)
+    test_rand_agent = RandomAgent(args.img_stack, test_env, args.seeds[1], device)
     # Initialize UNet model
     unet = UNet().to(device)
     # Initialize optimizer and setup scheduler and earlystopping
@@ -110,7 +109,7 @@ def train():
         np.savez_compressed(data_file_path, rand_buffer)
         print('Saved Random Trajectories in ', data_file_path)
         print('Collecting Random Test Trajectories')
-        test_rand_buffer = collect_trajectories(rand_agent, test_env, sample_size)
+        test_rand_buffer = collect_trajectories(test_rand_agent, test_env, sample_size)
         np.savez_compressed(test_data_file_path, test_rand_buffer)
         print('Saved Test Random Trajectories in ', test_data_file_path)
 
