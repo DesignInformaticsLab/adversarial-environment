@@ -124,7 +124,7 @@ def train():
         running_loss, no_of_batches = 0, 0
         test_running_loss, test_batch = 0, 0
         for index in BatchSampler(SubsetRandomSampler(range(images.shape[0])), batch_size, False):
-            recon_images = unet(images[index])
+            recon_images, _ = unet(images[index])
 
             loss = loss_fn(recon_images, images[index])
 
@@ -140,7 +140,7 @@ def train():
 
         with torch.no_grad():
             for index in BatchSampler(SubsetRandomSampler(range(test_images.shape[0])), batch_size, False):
-                recon_images = unet(test_images[index])
+                recon_images, _ = unet(test_images[index])
 
                 test_loss = loss_fn(recon_images, test_images[index])
 

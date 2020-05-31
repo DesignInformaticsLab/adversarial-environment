@@ -191,8 +191,8 @@ def train():
             latent_s = torch.empty(len(train_s[index]), SEQ_LEN, 16, dtype=torch.float).to(device)
             latent_gt_s = torch.empty(len(train_s[index]), SEQ_LEN, 16).to(device)
             for j in range(SEQ_LEN):
-                latent_s[:, j] = unet(train_s[index][:, j].unsqueeze(1)).squeeze()
-                latent_gt_s[:, j] = unet(gt_s[index][:, j].unsqueeze(1)).squeeze()
+                _, latent_s[:, j] = unet(train_s[index][:, j].unsqueeze(1)).squeeze()
+                _, latent_gt_s[:, j] = unet(gt_s[index][:, j].unsqueeze(1)).squeeze()
 
             pred_latent_next_s = rnn(train_a[index], latent_s)
 
@@ -214,8 +214,8 @@ def train():
                 latent_gt_s = torch.empty(len(test_s[index]), SEQ_LEN, 16).to(device)
 
                 for j in range(SEQ_LEN):
-                    latent_s[:, j] = unet(test_s[index][:, j].unsqueeze(1)).squeeze()
-                    latent_gt_s[:, j] = unet(test_gt_s[index][:, j].unsqueeze(1)).squeeze()
+                    _, latent_s[:, j] = unet(test_s[index][:, j].unsqueeze(1)).squeeze()
+                    _, latent_gt_s[:, j] = unet(test_gt_s[index][:, j].unsqueeze(1)).squeeze()
 
                 pred_latent_next_s = rnn(test_a[index], latent_s)
 

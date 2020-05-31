@@ -83,7 +83,7 @@ def test():
     # Initialize pre-trained policy agent and random agent
     agent = Agent(args.img_stack, device)
     agent.load_param()
-    rand_agent = RandomAgent(args.img_stack, device)
+    # rand_agent = RandomAgent(args.img_stack, device)
     # Initialize environments
     env = Env(args.seeds[0], args.img_stack, args.action_repeat)
     test_env = Env(args.seeds[1], args.img_stack, args.action_repeat)
@@ -119,7 +119,7 @@ def test():
     test_running_loss, test_batch = 0, 0
     for index in BatchSampler(SubsetRandomSampler(range(images_test.shape[0])), batch_size, False):
         with torch.no_grad():
-            recon_images = unet(images_test[index])
+            recon_images, _ = unet(images_test[index])
 
             test_loss = loss_fn(recon_images, images_test[index])
 
@@ -136,7 +136,7 @@ def test():
         bounds = np.random.randint(0, sample_size - batch_size)
         with torch.no_grad():
             plt.title('Predicted')
-            recon = unet(images_test[bounds:bounds + batch_size])
+            recon, _ = unet(images_test[bounds:bounds + batch_size])
             plt.imshow(recon[num].reshape((96, 96)), cmap='gray')
             plt.savefig(os.path.join(img_data_file_path, '{}_Recon.png'.format(i)))
         plt.title('Ground Truth current')

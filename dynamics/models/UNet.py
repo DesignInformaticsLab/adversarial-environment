@@ -66,5 +66,5 @@ class UNet(nn.Module):
         # Encode state to the latent space
         latent_s = self.encode_state(state)
         # Reconstruction
-        # pred_s_t = self.reconstruct(state)
-        return latent_s
+        pred_s = self.decode_state(latent_s)
+        return pred_s, latent_s
