@@ -30,7 +30,7 @@ np.random.seed(args.seed)
 def get_recon(net, img):
     with torch.no_grad():
         tensor_img = torch.tensor(img).float().to(device).reshape((1, 1, 96, 96))
-        tensor_recon = net(tensor_img)
+        tensor_recon, _ = net(tensor_img)
     return tensor_recon.squeeze().cpu().numpy()
 
 
