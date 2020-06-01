@@ -163,9 +163,9 @@ def train():
     # Load UNet weights
     load_param(unet, unet_weights_file_path, device)
 
-    rnn.train()
     epoch_start_time = time.time()
     for epoch in range(1, epochs + 1):
+        rnn.train()
         running_loss, no_of_batches = 0, 0
         test_running_loss, test_batch = 0, 0
         hidden = rnn.init_hidden(args.batch_size, device)
@@ -188,7 +188,7 @@ def train():
             torch.nn.utils.clip_grad_norm_(rnn.parameters(), args.clip)
             for p in rnn.parameters():
                 # TO DO: Need to fix this part based on how lr_scheduler works
-                p.data.add_(-lr, p.grad)
+                p.data.add_(-optimizer.param_groups[len(optimizer.param_groups) - 1]['lr'], p.grad)
 
             running_loss += loss.item()
             no_of_batches += 1
