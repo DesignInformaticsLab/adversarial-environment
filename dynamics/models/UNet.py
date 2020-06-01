@@ -62,9 +62,10 @@ class UNet(nn.Module):
         # reconstruct based on encoder and decoder
         return self.decode_state(self.encode_state(state))
 
-    def forward(self, state):
-        # Encode state to the latent space
-        latent_s = self.encode_state(state)
-        # Reconstruction
-        pred_s = self.decode_state(latent_s)
-        return pred_s, latent_s
+    def forward(self, state=None, latent=None):
+        if state is not None:
+            # Encode state to the latent space
+            return self.encode_state(state)
+        if latent is not None:
+            # Decode
+            return self.decode_state(latent)

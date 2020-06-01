@@ -14,7 +14,7 @@ from dynamics.models.UNet import UNet
 parser = argparse.ArgumentParser(description='Show reconstruction of CarRacingAdv environment')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
-parser.add_argument('--policy', type=str, choices=['random', 'pretrained'], help='Policy to be chosen for agent')
+parser.add_argument('--policy', type=str, required=True, choices=['random', 'pretrained'], help='Policy to be chosen for agent')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--save', action='store_true', help='save the video')
 args = parser.parse_args()
@@ -45,14 +45,14 @@ if __name__ == "__main__":
         env = Env(args.seed, args.img_stack, args.action_repeat)
         agent = Agent(args.img_stack, device)
         agent.load_param()
-    # load VAE
-    vae = UNet().to(device)
-    vae.eval()
+    # load UNet
+    unet = UNet().to(device)
+    unet.eval()
     weights_file_path = 'dynamics/param/UNet.pkl'
     if device == torch.device('cpu'):
-        vae.load_state_dict(torch.load(weights_file_path, map_location='cpu'))
+        unet.load_state_dict(torch.load(weights_file_path, map_location='cpu'))
     else:
-        vae.load_state_dict(torch.load(weights_file_path))
+        unet.load_state_dict(torch.load(weights_file_path))
 
     score = 0
     state = env.reset()
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     # store original and reconstructed images
     gt_list, recon_list = [], []
     gt_list.append(state[0].squeeze())
-    recon_list.append(get_recon(vae, state[0]))
+    recon_list.append(get_recon(unet, state[0]))
 
     # Loop over frames of one episode
     print('Running environment to collect frames')
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
         # store original and reconstructed images
         gt_list.append(state_[0].squeeze())
-        recon_list.append(get_recon(vae, state_[0]))
+        recon_list.append(get_recon(unet, state_[0]))
         score += reward
         state = state_
         if done or die:

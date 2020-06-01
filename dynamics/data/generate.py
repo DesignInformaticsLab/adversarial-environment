@@ -18,9 +18,9 @@ parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack
 parser.add_argument('--render', action='store_true', help='render the environment')
 parser.add_argument('--sample-size', type=int, default=1e4, help='Total number of samples to generate')
 parser.add_argument('--thread-no', type=int, default=0, help='Thread number to create directory based on')
-parser.add_argument('--root-dir', type=str, help='Directory to store data')
+parser.add_argument('--root-dir', type=str, required=True, help='Directory to store data')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
-parser.add_argument('--policy', type=str, choices=['random', 'pretrained'], help='Policy to be chosen for agent')
+parser.add_argument('--policy', type=str, required=True, choices=['random', 'pretrained'], help='Policy to be chosen for agent')
 parser.add_argument('--noise-type', type=str, choices=['white', 'brown'], default='brown',
                     help='Noise type used for action sampling')
 args = parser.parse_args()
@@ -45,7 +45,7 @@ def generate_data(agent, env):
     buffer = np.empty(int(args.sample_size), dtype=trajectory_type)
 
     # Loop through number of episodes
-    for i in range(args.sample_size // 1000):
+    for i in range(int(args.sample_size // 1000)):
         state = env.reset()
         # generate actions if it is random policy
         if args.policy == 'random':
@@ -70,8 +70,8 @@ def generate_data(agent, env):
             if t == 999 or done:
                 break
 
-    np.savez_compressed(join(final_dir, f'{args.policy}-{args.sample_size}-ns-seed-{args.seed}-trajectories'), buffer)
-    print(f'Data generated from {args.policy} policy of size {args.sample_size} with seed {args.seed}')
+    np.savez_compressed(join(final_dir, f'{args.policy}-{int(args.sample_size)}-ns-seed-{args.seed}-trajectories'), buffer)
+    print(f'Data generated from {args.policy} policy of size {int(args.sample_size)} with seed {args.seed}')
 
 
 if __name__ == '__main__':

@@ -174,10 +174,8 @@ def train():
             # convert to latents
             with torch.no_grad():
                 batch_size_tmp, seq_len_tmp = s.shape[:2]
-                _, latent_s = unet(s.reshape(-1, 1, *s.shape[-2:]))
-                latent_s = latent_s.reshape(batch_size_tmp, seq_len_tmp, -1)
-                _, latent_s_ = unet(s_.reshape(-1, 1, *s.shape[-2:]))
-                latent_s_ = latent_s_.reshape(batch_size_tmp, seq_len_tmp, -1)
+                latent_s = unet(state=s.reshape(-1, 1, *s.shape[-2:])).reshape(batch_size_tmp, seq_len_tmp, -1)
+                latent_s_ = unet(state=s_.reshape(-1, 1, *s.shape[-2:])).reshape(batch_size_tmp, seq_len_tmp, -1)
             # Starting each batch, we detach the hidden state from how it was previously produced.
             # If we didn't, the model would try backpropagating all the way to start of the dataset.
             rnn.zero_grad()
@@ -205,10 +203,8 @@ def train():
                 s, a, s_ = get_batch(test_s, test_a, test_s_, i)
                 # convert to latents
                 batch_size_tmp, seq_len_tmp = s.shape[:2]
-                _, latent_s = unet(s.reshape(-1, 1, *s.shape[-2:]))
-                latent_s = latent_s.reshape(batch_size_tmp, seq_len_tmp, -1)
-                _, latent_s_ = unet(s_.reshape(-1, 1, *s.shape[-2:]))
-                latent_s_ = latent_s_.reshape(batch_size_tmp, seq_len_tmp, -1)
+                latent_s = unet(state=s.reshape(-1, 1, *s.shape[-2:])).reshape(batch_size_tmp, seq_len_tmp, -1)
+                latent_s_ = unet(state=s_.reshape(-1, 1, *s.shape[-2:])).reshape(batch_size_tmp, seq_len_tmp, -1)
 
                 output, hidden = rnn(a, latent_s, hidden)
                 hidden = repackage_hidden(hidden)
