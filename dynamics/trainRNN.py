@@ -183,7 +183,8 @@ def train():
             rnn.zero_grad()
             hidden = repackage_hidden(hidden)
             output, hidden = rnn(a, latent_s, hidden)
-            loss = loss_fn(output, latent_s_)
+
+            loss = loss_fn(output.squeeze(), latent_s_)
 
             optimizer.zero_grad()
             loss.backward()
@@ -215,7 +216,8 @@ def train():
 
                 output, hidden = rnn(a, latent_s, hidden)
                 hidden = repackage_hidden(hidden)
-                test_loss = loss_fn(output, latent_s_)
+
+                test_loss = loss_fn(output.squeeze(), latent_s_)
                 test_running_loss += test_loss.item()
                 test_batch += 1
 
