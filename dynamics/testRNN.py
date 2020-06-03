@@ -50,7 +50,7 @@ ACTION_SIZE = 3
 rnn_weights_file_path = 'dynamics/param/RNN.pkl'
 unet_weights_file_path = 'dynamics/param/UNet.pkl'
 test_data_file_path = 'dynamics/trajectories/random-{}-ns-seed-{}-trajectories.npz'.format(int(sample_size),
-                                                                                           args.seeds[0])
+                                                                                           args.seeds[1])
 img_data_file_path = 'dynamics/imgs'
 
 
@@ -118,8 +118,8 @@ def test():
     test_running_loss, test_batch = 0, 1
     # Turn on evaluation mode which disables dropout.
     rnn.eval()
-    # Choose random batch
-    num = np.random.randint(0, test_s.size(1) // SEQ_LEN)
+    # Choose random image within that batch for visualization
+    index = np.random.randint(0, batch_size)
     with torch.no_grad():
         for batch, i in enumerate(range(0, test_s.size(1), SEQ_LEN)):
             s, a, s_ = get_batch(test_s, test_a, test_s_, i)
@@ -131,7 +131,7 @@ def test():
             latent_s_ = latent_s_.reshape(batch_size_tmp, seq_len_tmp, -1)
 
             output, hidden = rnn(a, latent_s)
-            hidden = repackage_hidden(hidden)
+            # hidden = repackage_hidden(hidden)
             test_loss = loss_fn(output.squeeze(), latent_s_)
             test_running_loss += test_loss.item()
             test_batch += 1
@@ -142,17 +142,14 @@ def test():
             print('-' * 89)
             file.write("\nLoss for Batch {}: {}".format(batch, test_loss.item()))
 
-            # Choose random image within that batch for visualization
-            index = np.random.randint(0, batch_size)
-
-            for i in range(SEQ_LEN):
+            for j in range(SEQ_LEN):
                 plt.title('Predicted')
-                pred = unet(latent=output[:, i])
+                pred = unet(latent=output[:, j].reshape(-1, LATENT_SIZE, 1, 1))
                 plt.imshow(pred[index].reshape((96, 96)), cmap='gray')
-                plt.savefig(os.path.join(img_data_file_path, '{}_Pred.png'.format(i + SEQ_LEN*batch)))
+                plt.savefig(os.path.join(img_data_file_path, '{}_Pred.png'.format(j + SEQ_LEN*batch)))
                 plt.title('Ground Truth current')
-                plt.imshow(s_[index, i].reshape((96, 96)), cmap='gray')
-                plt.savefig(os.path.join(img_data_file_path, '{}_GT.png'.format(i + SEQ_LEN*batch)))
+                plt.imshow(s_[index, j].reshape((96, 96)), cmap='gray')
+                plt.savefig(os.path.join(img_data_file_path, '{}_GT.png'.format(j + SEQ_LEN*batch)))
 
     test_running_loss = test_running_loss / test_batch
 

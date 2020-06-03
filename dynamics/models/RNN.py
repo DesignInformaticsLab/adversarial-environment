@@ -17,7 +17,7 @@ class RNN(nn.Module):
         # Fully connected layer to convert hidden to output
         self.fc = nn.Linear(hidden_size, self.output_size)
 
-    def forward(self, actions, latents, hidden):
+    def forward(self, actions, latents, hidden=None):
         # get batch_size and seq_len from tensor
         batch_size, seq_len = actions.shape[:2]
         # concatenate states and actions
