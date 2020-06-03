@@ -47,11 +47,11 @@ HIDDEN_SIZE = args.hidden_size
 LATENT_SIZE = 16
 ACTION_SIZE = 3
 
-rnn_weights_file_path = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/param/RNN.pkl'
-unet_weights_file_path = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/param/UNet.pkl'
-test_data_file_path = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/trajectories/pretrained-{}-ns-seed-{}-trajectories.npz'.format(int(sample_size),
+rnn_weights_file_path = 'dynamics/param/RNN.pkl'
+unet_weights_file_path = 'dynamics/param/UNet.pkl'
+test_data_file_path = 'dynamics/trajectories/random-{}-ns-seed-{}-trajectories.npz'.format(int(sample_size),
                                                                                            args.seeds[0])
-img_data_file_path = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/imgs'
+img_data_file_path = 'dynamics/imgs'
 
 
 def batchify(data, bsz):
