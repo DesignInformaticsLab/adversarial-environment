@@ -36,6 +36,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seeds[0])
 if use_cuda:
     torch.cuda.manual_seed(args.seeds[0])
+np.random.seed(args.seeds[1])
 
 # Hyper Parameters
 epochs = args.epochs
@@ -120,6 +121,7 @@ def test():
     rnn.eval()
     # Choose random image within that batch for visualization
     index = np.random.randint(0, batch_size)
+    hidden = rnn.init_hidden(batch_size, device)
     with torch.no_grad():
         for batch, i in enumerate(range(0, test_s.size(1), SEQ_LEN)):
             s, a, s_ = get_batch(test_s, test_a, test_s_, i)
@@ -130,7 +132,7 @@ def test():
             _, latent_s_ = unet(state=s_.reshape(-1, 1, *s.shape[-2:]))
             latent_s_ = latent_s_.reshape(batch_size_tmp, seq_len_tmp, -1)
 
-            output, hidden = rnn(a, latent_s)
+            output, hidden = rnn(a, latent_s, hidden)
             # hidden = repackage_hidden(hidden)
             test_loss = loss_fn(output.squeeze(), latent_s_)
             test_running_loss += test_loss.item()
