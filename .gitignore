@@ -5,6 +5,7 @@ __pycache__/
 runs
 dynamics/trajectories
 dynamics/imgs
+dynamics/param
 
 # helper scripts
 sbatch_gpu.sh
