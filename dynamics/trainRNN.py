@@ -74,54 +74,6 @@ def get_batch(state, action, state_, i):
     return state_b, action_b, state__b
 
 
-# As of now this function is not used
-def return_sequence(s, next_s, a):
-    # Calculate no of sequences to store
-    no_of_sequences = int(sample_size / SEQ_LEN)
-    train_data = np.zeros((no_of_sequences, SEQ_LEN, 96, 96), dtype=np.float64)
-    gt_data = np.zeros((no_of_sequences, SEQ_LEN, 96, 96), dtype=np.float64)
-    a_data = np.zeros((no_of_sequences, SEQ_LEN, 3), dtype=np.float64)
-
-    seq_no = 0
-    while seq_no < no_of_sequences:
-        sequence = []
-        gt_sequence = []
-        a_sequence = []
-        if seq_no < no_of_sequences:
-            # Split complete trajectory into sequences of length SEQ_LEN
-            for seq in range(int(SEQ_LEN)):
-                if seq < SEQ_LEN / 2:
-                    sequence.append(s[seq + seq_no * SEQ_LEN])
-                    sequence.append(next_s[seq + seq_no * SEQ_LEN])
-                    gt_sequence.append(s[seq + 1 + seq_no * SEQ_LEN])
-                    gt_sequence.append(next_s[seq + 1 + seq_no * SEQ_LEN])
-
-                a_sequence.append(a[seq + seq_no * SEQ_LEN])
-
-            if SEQ_LEN % 2 == 1:
-                sequence.append(s[SEQ_LEN - 1])
-                gt_sequence.append(SEQ_LEN - 1)
-                a_sequence.append(SEQ_LEN - 1)
-
-            train_data[seq_no] = np.array(sequence)
-            gt_data[seq_no] = np.array(gt_sequence)
-            a_data[seq_no] = np.array(a_sequence)
-        else:
-            # This portion is to generate the last sequence when sample_size does not divide evenly into SEQ_LEN
-            # Still a work in progress
-            pass
-            # no_of_remaining_frames = sample_size - int(sample_size/SEQ_LEN) * SEQ_LEN
-            # for seq in range(int(no_of_remaining_frames/2)):
-            #     sequence.append(s[seq + (seq_no - 1) * SEQ_LEN])
-            #     sequence.append(next_s[seq + (seq_no - 1) * SEQ_LEN])
-            #
-            # train_data = np.append(train_data, np.expand_dims(np.array(sequence), axis=0), axis=0)
-
-        seq_no += 1
-
-    return train_data, gt_data, a_data
-
-
 def loss_fn(pred_latent, gt_latent):
     mse = nn.MSELoss()
     MSE = mse(pred_latent, gt_latent)

@@ -147,10 +147,10 @@ def test():
             for j in range(SEQ_LEN):
                 plt.title('Predicted')
                 pred = unet(latent=output[:, j].reshape(-1, LATENT_SIZE, 1, 1))
-                plt.imshow(pred[index].reshape((96, 96)), cmap='gray')
+                plt.imshow(pred[index].cpu().numpy().reshape((96, 96)), cmap='gray')
                 plt.savefig(os.path.join(img_data_file_path, '{}_Pred.png'.format(j + SEQ_LEN*batch)))
                 plt.title('Ground Truth current')
-                plt.imshow(s_[index, j].reshape((96, 96)), cmap='gray')
+                plt.imshow(s_[index, j].cpu().numpy().reshape((96, 96)), cmap='gray')
                 plt.savefig(os.path.join(img_data_file_path, '{}_GT.png'.format(j + SEQ_LEN*batch)))
 
     test_running_loss = test_running_loss / test_batch
