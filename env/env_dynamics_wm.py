@@ -53,14 +53,14 @@ class EnvDynamics:
             self.obs = self.decoder(self.l_state)
             np_obs = self.obs.numpy()
             np_obs = np.clip(np_obs, 0, 1) * 255
-            # np_obs = np.transpose(np_obs, (0, 2, 3, 1))
+            np_obs = np.transpose(np_obs, (0, 2, 3, 1))
             np_obs = np_obs.squeeze()
             np_obs = np_obs.astype(np.uint8)
             self.v_obs = np_obs
 
     def __perform_rnn__(self, action):
         with torch.no_grad():
-            action = torch.tensor(action).unsqueeze(0)
+            action = torch.tensor(action).float().unsqueeze(0)
             mu, sigma, pi, r, d, n_h = self.rnn(action, self.l_state, self.h_state)
             pi = pi.squeeze()
             mixt = Categorical(torch.exp(pi)).sample().item()
@@ -77,10 +77,10 @@ class EnvDynamics:
         # perform decoder step
         self.__perform_decoder__()
         # get first state from random latent state
-        assert self.v_obs.shape == (3, 96, 96)
-        img_gray = torch.tensor(self.rgb2gray(self.v_obs)).float()
+        assert self.v_obs.shape == (96, 96, 3)
+        img_gray = self.rgb2gray(self.v_obs)
         self.stack = [img_gray] * self.img_stack
-        return torch.stack(self.stack).float().to(self.device).cpu().numpy()
+        return np.array(self.stack)
 
         # also reset monitor
         # if not self.monitor:
@@ -91,7 +91,7 @@ class EnvDynamics:
     def step(self, action, should_unroll=False):
         done = False
         self.__perform_rnn__(action)
-        state_ = torch.tensor(self.rgb2gray(self.v_obs)).float()
+        state_ = self.rgb2gray(self.v_obs)
         state_ = state_.squeeze()
         if should_unroll:
             self.counter += 1
@@ -101,7 +101,7 @@ class EnvDynamics:
         self.stack.pop(0)
         self.stack.append(state_)
         assert len(self.stack) == self.img_stack
-        return torch.stack(self.stack).float().to(self.device), 0, done, False
+        return np.array(self.stack), 0, done, False
 
     @staticmethod
     def rgb2gray(rgb, norm=True):
