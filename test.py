@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import torch
 
-from env.env_adv import Env
+from env.env_dynamics_wm import EnvDynamics
 from agents.agents import Agent
 
 parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
@@ -21,7 +21,7 @@ if use_cuda:
 if __name__ == "__main__":
     agent = Agent(args.img_stack, device)
     agent.load_param()
-    env = Env(args.seed, args.img_stack, args.action_repeat)
+    env = EnvDynamics(args.seed, args.img_stack, args.action_repeat, device)
 
     training_records = []
     running_score = 0

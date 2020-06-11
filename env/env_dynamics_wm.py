@@ -36,8 +36,8 @@ class EnvDynamics:
         self.figure = None
 
     def __load_dynamics_params__(self):
-        vae_weights_file = 'dynamics/param/vae/best.tar'
-        rnn_weights_file = 'dynamics/param/mdrnn/best.tar'
+        vae_weights_file = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/param/vae/best.tar'
+        rnn_weights_file = '/Users/traviszhang/Python Scripts/deeplearning/Science Fair 2019-2020/Project 2/adversarial-environment/dynamics/param/mdrnn/best.tar'
         # load vae
         vae_state = torch.load(vae_weights_file, map_location=lambda storage, location: storage)
         print("Loading VAE at epoch {}, with test error {}...".format(vae_state['epoch'], vae_state['precision']))
@@ -60,7 +60,7 @@ class EnvDynamics:
 
     def __perform_rnn__(self, action):
         with torch.no_grad():
-            action = torch.tensor(action).float().unsqueeze(0)
+            action = action.clone().detach().float().unsqueeze(0)
             mu, sigma, pi, r, d, n_h = self.rnn(action, self.l_state, self.h_state)
             pi = pi.squeeze()
             mixt = Categorical(torch.exp(pi)).sample().item()
@@ -83,10 +83,10 @@ class EnvDynamics:
         return np.array(self.stack)
 
         # also reset monitor
-        # if not self.monitor:
-        #     self.figure = plt.figure()
-        #     self.monitor = plt.imshow(
-        #         np.zeros((64, 64, 3), dtype=np.uint8))
+        if not self.monitor:
+            self.figure = plt.figure()
+            self.monitor = plt.imshow(
+                np.zeros((96, 96, 3), dtype=np.uint8))
 
     def step(self, action, should_unroll=False):
         done = False
@@ -110,3 +110,14 @@ class EnvDynamics:
             # normalize
             gray = gray / 128. - 1.
         return gray
+
+    def render(self):  # pylint: disable=arguments-differ
+        """ Rendering """
+        import matplotlib.pyplot as plt
+        if not self.monitor:
+            self.figure = plt.figure()
+            self.monitor = plt.imshow(
+                np.zeros((96, 96, 3),
+                         dtype=np.uint8))
+        self.monitor.set_data(self.v_obs)
+        plt.pause(.01)

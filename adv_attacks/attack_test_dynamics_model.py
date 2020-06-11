@@ -10,7 +10,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from env.env_dynamics import EnvDynamics
+from env.env_dynamics_wm import EnvDynamics
 from networks.actor_critic import A2CNet
 from agents.agents import Agent
 
@@ -62,29 +62,29 @@ def test_attack():
     delta_s = np.load(file)
 
     # initialize s_0 and draw corresponding a_0, waste few frames at the beginning if needed
-    state = env.reset()
+    state = torch.from_numpy(env.reset()).float()
     for i in range(4):
         action = agent.select_action_with_grad(state)
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
-        state = state_
+        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
+        state = torch.tensor(state_, dtype=torch.float)
 
     for t in range(1, 1000):
         d_s_i = np.zeros(state.shape)
         if t <= args.attack_length:
             # test the attack
-            s_i = state.detach().cpu().numpy()
+            s_i = state
             d_s_i = delta_s[t - 1]
             s_with_d_s = s_i + d_s_i
             action = agent.select_action_with_grad(torch.tensor(s_with_d_s).float().to(device))
         else:
-            action = agent.select_action_with_grad(state)
+            action = agent.select_action_with_grad(torch.from_numpy(state).float())
 
         # show state and delta_s for unrolled length
-        plt.imshow((state.detach().cpu().numpy() + d_s_i)[0], cmap='gray')
+        plt.imshow((state + d_s_i)[0], cmap='gray')
         plt.title('frame 1 of s + delta_s at T=' + str(t))
         plt.show()
 
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]), True)
+        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]), True)
         state = state_
         if done:
             break

@@ -11,7 +11,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from env.env_dynamics import EnvDynamics
+from env.env_dynamics_wm import EnvDynamics
 from networks.actor_critic import A2CNet
 from agents.agents import Agent
 
@@ -21,10 +21,10 @@ parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='r
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
-parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+parser.add_argument('--attack_type', type=str, default='general', choices=['general', 'patch'], metavar='N', help='type of the attack')
 parser.add_argument('--adv_bound', type=float, default=0.1, metavar='N', help='epsilon value for perturbation limits')
 # only use if attack_type is not general
-parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
+parser.add_argument('--patch_type', type=str, default='box', choices=['box', 'circle'], metavar='N', help='type of patch in patch attack type')
 parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
 parser.add_argument('--lmd', type=float, default=1.0, metavar='N', help='lmd for dynamics loss')
 parser.add_argument('--unroll_length', type=int, default=10, metavar='N', help='Unroll length (T) for dynamics model')
@@ -78,9 +78,10 @@ class AdvAttackDynamics:
     def train(self):
         # optimize perturbation
         # get states and delta_s from the buffer
-        s = torch.cat(self.buffer['s']).float().to(device)
+        s = torch.cat(self.buffer['s']).float().to(device)[:self.unroll_length]
+        s.requires_grad = True
         # get d_s (perturbation from buffer), d_s shape (T, 4, 96, 96)
-        d_s = torch.cat(self.buffer['d_s']).float().to(device)
+        d_s = torch.cat(self.buffer['d_s']).float().to(device)[:self.unroll_length]
         # set grad true so that it can be differentiable
         d_s.requires_grad = True
         # set target state
@@ -134,11 +135,11 @@ def run_agent():
     env = EnvDynamics(args.seed, args.img_stack, args.unroll_length, device, args.lmd)
 
     # initialize s_0 and draw corresponding a_0, waste few frames at the beginning if needed
-    state = env.reset()
+    state = torch.from_numpy(env.reset()).float()
     for i in range(4):
         action = agent.select_action_with_grad(state)
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
-        state = state_
+        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
+        state = torch.tensor(state_, dtype=torch.float)
 
     # Prepare attack
     attack = AdvAttackDynamics(args.attack_type, args.unroll_length, args.target_state)
@@ -155,9 +156,9 @@ def run_agent():
         # selection action based on s + d_s
         action = agent.select_action_with_grad(s_with_d_s)
         # get next state based on current state and action
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]), True)
+        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
         # update current state
-        state = state_
+        state = torch.tensor(state_, dtype=torch.float)
         if done:
             break
 
