@@ -110,7 +110,7 @@ class EnvDynamics:
         if not self.monitor:
             self.figure = plt.figure()
             self.monitor = plt.imshow(
-                np.zeros((64, 64, 3),
+                np.zeros((96, 96, 3),
                          dtype=np.uint8))
         self.monitor.set_data(self.v_obs)
         plt.pause(.01)
