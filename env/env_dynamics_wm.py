@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.distributions.categorical import Categorical
@@ -80,13 +81,14 @@ class EnvDynamics:
         assert self.v_obs.shape == (96, 96, 3)
         img_gray = self.rgb2gray(self.v_obs)
         self.stack = [img_gray] * self.img_stack
-        return np.array(self.stack)
 
         # also reset monitor
-        # if not self.monitor:
-        #     self.figure = plt.figure()
-        #     self.monitor = plt.imshow(
-        #         np.zeros((64, 64, 3), dtype=np.uint8))
+        if not self.monitor:
+            self.figure = plt.figure()
+            self.monitor = plt.imshow(
+                np.zeros((64, 64, 3), dtype=np.uint8))
+
+        return np.array(self.stack)
 
     def step(self, action, should_unroll=False):
         done = False
@@ -102,6 +104,16 @@ class EnvDynamics:
         self.stack.append(state_)
         assert len(self.stack) == self.img_stack
         return np.array(self.stack), 0, done, False
+
+    def render(self):  # pylint: disable=arguments-differ
+        """ Rendering """
+        if not self.monitor:
+            self.figure = plt.figure()
+            self.monitor = plt.imshow(
+                np.zeros((64, 64, 3),
+                         dtype=np.uint8))
+        self.monitor.set_data(self.v_obs)
+        plt.pause(.01)
 
     @staticmethod
     def rgb2gray(rgb, norm=True):

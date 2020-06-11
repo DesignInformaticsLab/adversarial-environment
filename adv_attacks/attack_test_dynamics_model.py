@@ -1,17 +1,15 @@
-import torch
-import torch.optim as optim
-from torchvision.utils import make_grid
-import numpy as np
 import argparse
-import warnings
-from torch.utils.tensorboard import SummaryWriter
-import matplotlib.pyplot as plt
-import sys
 import os
+import sys
+import warnings
 
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from env.env_dynamics import EnvDynamics
-from networks.actor_critic import A2CNet
+from env.env_dynamics_wm import EnvDynamics
 from agents.agents import Agent
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -39,6 +37,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 # variables for patch attack, Need to move somewhere else later
 box_dim = (48, 48)
@@ -64,27 +63,29 @@ def test_attack():
     # initialize s_0 and draw corresponding a_0, waste few frames at the beginning if needed
     state = env.reset()
     for i in range(4):
-        action = agent.select_action_with_grad(state)
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
+        action = agent.select_action(state)
+        state_, _, done, _ = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
         state = state_
 
     for t in range(1, 1000):
         d_s_i = np.zeros(state.shape)
         if t <= args.attack_length:
             # test the attack
-            s_i = state.detach().cpu().numpy()
+            s_i = state
             d_s_i = delta_s[t - 1]
             s_with_d_s = s_i + d_s_i
-            action = agent.select_action_with_grad(torch.tensor(s_with_d_s).float().to(device))
+            action = agent.select_action(s_with_d_s)
         else:
-            action = agent.select_action_with_grad(state)
+            action = agent.select_action(state)
 
         # show state and delta_s for unrolled length
-        plt.imshow((state.detach().cpu().numpy() + d_s_i)[0], cmap='gray')
+        plt.imshow((state + d_s_i)[0], cmap='gray')
         plt.title('frame 1 of s + delta_s at T=' + str(t))
         plt.show()
 
-        state_, _, done, _ = env.step(state, action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]), True)
+        state_, _, done, _ = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]), True)
+        if args.render:
+            env.render()
         state = state_
         if done:
             break
