@@ -19,10 +19,10 @@ parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='r
 parser.add_argument('--img-stack', type=int, default=4, metavar='N', help='stack N image in a state (default: 4)')
 parser.add_argument('--seed', type=int, default=0, metavar='N', help='random seed (default: 0)')
 parser.add_argument('--render', action='store_true', help='render the environment')
-parser.add_argument('--attack_type', type=str, default='general', metavar='N', help='type of the attack')
+parser.add_argument('--attack_type', type=str, default='general', choices=['general', 'patch'], metavar='N', help='type of the attack')
 parser.add_argument('--adv_bound', type=float, default=0.1, metavar='N', help='epsilon value for perturbation limits')
 # only use if attack_type is not general
-parser.add_argument('--patch_type', type=str, default='box', metavar='N', help='type of patch in patch attack type')
+parser.add_argument('--patch_type', type=str, default='box', choices=['box', 'circle'], metavar='N', help='type of patch in patch attack type')
 parser.add_argument('--patch_size', type=int, default=24, metavar='N', help='size of patch in patch attack type')
 parser.add_argument('--lmd', type=float, default=1.0, metavar='N', help='lmd for dynamics loss')
 parser.add_argument('--unroll_length', type=int, default=10, metavar='N', help='Unroll length (T) for dynamics model')
@@ -77,9 +77,10 @@ class AdvAttackDynamics:
     def train(self):
         # optimize perturbation
         # get states and delta_s from the buffer
-        s = torch.cat(self.buffer['s']).float().to(device)
+        s = torch.cat(self.buffer['s']).float().to(device)[:self.unroll_length]
+        s.requires_grad = True
         # get d_s (perturbation from buffer), d_s shape (T, 4, 96, 96)
-        d_s = torch.cat(self.buffer['d_s']).float().to(device)
+        d_s = torch.cat(self.buffer['d_s']).float().to(device)[:self.unroll_length]
         # set grad true so that it can be differentiable
         d_s.requires_grad = True
         # set target state

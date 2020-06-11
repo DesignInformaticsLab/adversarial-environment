@@ -1,9 +1,10 @@
 import argparse
+
 import numpy as np
 import torch
 
-from env.env_adv import Env
 from agents.agents import Agent
+from env.env_adv import Env
 
 parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
