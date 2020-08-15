@@ -66,7 +66,7 @@ def test_attack():
     # initialize s_0 and draw corresponding a_0, waste few frames at the beginning if needed
     state = env.reset()
     for i in range(4):
-        action = agent.select_action_with_grad(state)
+        action = agent.select_action_with_grad(torch.tensor(state).float().to(device))
         state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
         state = state_
 

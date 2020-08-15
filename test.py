@@ -1,12 +1,9 @@
 import argparse
-
 import numpy as np
 import torch
 
 from env.env_dynamics_wm import EnvDynamics
 from agents.agents import Agent, RandomAgent
-from agents.agents import Agent
-from env.env_adv import Env
 
 parser = argparse.ArgumentParser(description='Test the PPO agent for the CarRacing-v0')
 parser.add_argument('--action-repeat', type=int, default=8, metavar='N', help='repeat action in N frames (default: 12)')
@@ -25,7 +22,7 @@ if use_cuda:
 def pretrained():
     agent = Agent(args.img_stack, device)
     agent.load_param()
-    env = Env(args.seed, args.img_stack, args.action_repeat)
+    env = EnvDynamics(args.seed, args.img_stack, args.action_repeat, device)
 
     training_records = []
     running_score = 0
@@ -76,4 +73,3 @@ if __name__ == "__main__":
         pretrained()
     elif args.mode == 'random':
         random()
-
