@@ -6,6 +6,7 @@ runs
 dynamics/trajectories
 dynamics/imgs
 dynamics/param
+adv_attacks/perturbations
 
 # helper scripts
 sbatch_gpu.sh

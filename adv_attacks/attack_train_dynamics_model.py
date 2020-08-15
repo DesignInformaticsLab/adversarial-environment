@@ -1,18 +1,16 @@
+import argparse
+import os
+import sys
+import warnings
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision.utils import make_grid
-import numpy as np
-import argparse
-import warnings
-from torch.utils.tensorboard import SummaryWriter
-import matplotlib.pyplot as plt
-import sys
-import os
 
+warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env.env_dynamics_wm import EnvDynamics
-from networks.actor_critic import A2CNet
 from agents.agents import Agent
 
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -39,6 +37,7 @@ device = torch.device("cuda" if use_cuda else "cpu")
 torch.manual_seed(args.seed)
 if use_cuda:
     torch.cuda.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 # variables for patch attack, Need to move somewhere else later
 box_dim = (48, 48)
@@ -72,8 +71,8 @@ class AdvAttackDynamics:
                     for j in range(delta_s.shape[2]):
                         if (circle_centre[0] - i) ** 2 + (circle_centre[1] - j) ** 2 >= circle_radius ** 2:
                             delta_s[:, i, j] = 0
-        self.buffer['s'].append(state.unsqueeze(0))
-        self.buffer['d_s'].append(delta_s.unsqueeze(0))
+        self.buffer['s'].append(torch.tensor(state).unsqueeze(0))
+        self.buffer['d_s'].append(torch.tensor(delta_s).unsqueeze(0))
 
     def train(self):
         # optimize perturbation
@@ -86,12 +85,11 @@ class AdvAttackDynamics:
         d_s.requires_grad = True
         # set target state
         s_t = torch.cat(self.unroll_length * [torch.tensor(self.target_state).unsqueeze(0)]).float().to(device)
-
+        # set up adam optimizer with d_s (perturbation) as parameters
         mse_optim = optim.Adam([d_s], lr=args.lr)
 
         for x in range(args.epochs):
-            mse_loss = nn.MSELoss()(s, s_t)
-            # set up adam optimizer with d_s (perturbation) as parameters
+            mse_loss = nn.MSELoss()(s + d_s, s_t)
             # set gradients zero before back propagation
             mse_optim.zero_grad()
             # perform back propagation
@@ -103,7 +101,7 @@ class AdvAttackDynamics:
                 if self.attack_type == 'patch':
                     if args.patch_type == 'box':
                         temp = d_s
-                        d_s = torch.zeros_like(temp)
+                        d_s = torch.zeros_like(temp, requires_grad=True)
                         d_s[:, :, box_position[0]: box_position[0] + box_dim[0],
                         box_position[1]: box_position[1] + box_dim[1]] = temp[:, :,
                                                                          box_position[0]: box_position[0] + box_dim[0],
@@ -135,11 +133,11 @@ def run_agent():
     env = EnvDynamics(args.seed, args.img_stack, args.unroll_length, device, args.lmd)
 
     # initialize s_0 and draw corresponding a_0, waste few frames at the beginning if needed
-    state = torch.from_numpy(env.reset()).float()
+    state = env.reset()
     for i in range(4):
-        action = agent.select_action_with_grad(state)
-        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
-        state = torch.tensor(state_, dtype=torch.float)
+        action = agent.select_action(state)
+        state_, _, done, _ = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
+        state = state_
 
     # Prepare attack
     attack = AdvAttackDynamics(args.attack_type, args.unroll_length, args.target_state)
@@ -147,18 +145,20 @@ def run_agent():
     for t in range(1, 1000):
         # print(f'Received s_{t} from dynamics model')
         # Initialize random perturbation for optimising the attack
-        delta_s = torch.randn(state.shape) * 0.1
+        delta_s = np.random.rand(*state.shape) * 0.1
         # update buffer for training the attack
         attack.update_buffer(state, delta_s)
         s_with_d_s = state + delta_s
         # observation limits
-        s_with_d_s = torch.clamp(s_with_d_s, -1, 0.9921875)
+        s_with_d_s = np.clip(s_with_d_s, -1, 0.9921875)
         # selection action based on s + d_s
-        action = agent.select_action_with_grad(s_with_d_s)
+        action = agent.select_action(s_with_d_s)
         # get next state based on current state and action
-        state_, _, done, _ = env.step(action * torch.tensor([2., 1., 1.]) + torch.tensor([-1., 0., 0.]))
+        state_, _, done, _ = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]), True)
         # update current state
-        state = torch.tensor(state_, dtype=torch.float)
+        state = state_
+        if args.render:
+            env.render()
         if done:
             break
 
