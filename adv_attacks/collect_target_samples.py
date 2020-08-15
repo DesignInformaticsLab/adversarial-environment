@@ -45,7 +45,7 @@ def collect():
             if t >= rand_action_start_t:
                 action = np.random.uniform(0.5, 1, (3,))
             else:
-                action = agent.select_action(state)
+                action = agent.select_action_np(state)
             state_, reward, done, die = env.step(action * np.array([2., 1., 1.]) + np.array([-1., 0., 0.]))
             if args.render:
                 env.render()

@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from env.env_adv import Env
 from agents.agents import Agent, RandomAgent
-from dynamics.dynamics_model import DynamicsModel
+from dynamics.models.dynamics_model import DynamicsModel
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 parser = argparse.ArgumentParser(description='Learn Dynamics Model of Environment')
