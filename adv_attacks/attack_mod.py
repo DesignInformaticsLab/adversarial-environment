@@ -13,7 +13,7 @@ from dynamics.models.vae import VAE
 from networks.actor_critic import A2CNet
 
 warnings.filterwarnings("ignore")
-torch.manual_seed(10)
+torch.manual_seed(16)
 
 # variables for patch attack, Need to move somewhere else later
 box_dim = (32, 32)
@@ -56,13 +56,14 @@ def render(state):  # pylint: disable=arguments-differ
     figure = plt.figure()
     monitor = plt.imshow(state, cmap='gray')
     plt.pause(.01)
+    plt.close()
 
 
 def main():
     # params
     # NOTE: ABOVE 0.3 ADV BOUND DOES NOT CONVERGE CORRECTLY
     adv_bound = 0.1
-    unroll_length = 150
+    unroll_length = 50
     lr = 0.05
     epochs = 15
     vae, decoder, rnn, a2c = load_nets()
